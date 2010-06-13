@@ -1,0 +1,46 @@
+Pwrake, Parallel Workflow extension for Rake  Masahiro Tanaka 2010-06-10
+
+* Required package
+
+  Ruby 1.8.x + Rake 0.8.7
+  or Ruby 1.9.x
+
+* Included packages
+
+  METIS 5.0pre2 (for graph partition)
+    http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-5.0pre2.tar.gz
+  Montage ('mImgHdr.c' is added)
+    http://montage.ipac.caltech.edu/download/Montage_v3.2_beta4.tar.gz
+
+* Preparation
+
+    tar xvzf pwrake-0pre1.tgz
+    cd pwrake-0pre1/pkg/metis-5.0pre2
+    make all
+    cd ../Montage_v3.2_beta4
+    make
+    ( optionally, copy binaries to your PATH )
+
+* Montage workflow Demo
+
+  1. Single host
+
+    ( do "Preparation" above )
+    cd pwrake-0pre1/demo
+    ./pwrake -f affinity.rake LOG=`date +%Y%m%d%H%M%S`
+
+  2. Multi-hosts with NFS
+
+    cd nfs_dir
+    ( do "Preparation" above )
+    cd pwrake-0pre1/demo
+    ./pwrake -f affinity.rake NODE=tsukuba4 LOG=`date +%Y%m%d%H%M%S`
+
+  3. Multi-hosts with Gfarm
+
+    mkdir /tmp/$USER
+    gfarm2fs /tmp/$USER
+    cd /tmp/$USER/$HOME/somewhere
+    ( do "Preparation" above )
+    cd pwrake-0pre1/demo
+    ./pwrake -f affinity.rake FS=gfarm NODE=tsukuba4 LOG=`date +%Y%m%d%H%M%S`
