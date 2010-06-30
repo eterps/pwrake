@@ -1,76 +1,110 @@
+require "pathname"
+
 class GfarmSSH < SSH
 
-  OPEN_LIST={}
-
-  def initialize(host,mnt_dir=nil)
+  def initialize(host,remote_mp=nil)
     a = []
-    @mnt_dir = mnt_dir
-    @gf_dir = self.class.gf_pwd
+    @remote_mp = Pathname.new(remote_mp)
+    #@gf_dir = self.class.gf_pwd
     a << super(host)
-    if @mnt_dir
-      @fs_dir = @mnt_dir + @gf_dir
-      a << exec("cd")
-      a << exec("mkdir -p #{@mnt_dir}")
-      a << exec("gfarm2fs #{@mnt_dir}")
-      exec("cd #{@fs_dir}")
+    if @remote_mp
+      #@fs_dir = @remote_mp + @gf_dir
+      #a << exec("cd")
+      a << exec("mkdir -p #{@remote_mp}")
+      a << exec("gfarm2fs #{@remote_mp}")
+      #a << exec("cd #{@fs_dir}")
     else
-      #p [host,mnt_dir,self.class.gf_pwd]
+      #p [host,remote_mp,self.class.gf_pwd]
     end
-    OPEN_LIST[__id__] = self
+
     #puts a
     self
   end
 
   def close
     a = []
-    if @mnt_dir
+    if @remote_mp
       exec("cd")
-      a << exec("fusermount -u #{@mnt_dir}")
-      a << exec("rmdir #{@mnt_dir}")
+      a << exec("fusermount -u #{@remote_mp}")
+      a << exec("rmdir #{@remote_mp}")
     end
     a << super
-    OPEN_LIST.delete(__id__)
     #puts a
     self
   end
 
-  def gf_pwd
-    Utils.trim_prefix(@mnt_dir||@@top_dir, fs_pwd)
+  #def gf_pwd
+  #  Utils.trim_prefix(@remote_mp||@@local_mp, fs_pwd)
+  #end
+
+  def cd_cwd
+    dir = @remote_mp + Pathname.pwd.relative_path_from(@@local_mp)
+    #puts("cd #{dir}")
+    exec("cd #{dir}")
   end
 
-  def gf_cd(dir)
-    exec("cd #{@mnt_dir+dir}")
+  def cd(dir)
+    path = Pathname.new(dir)
+    if path.absolute?
+      path = @remote_mp + path.relative_path_from(Pathname.new("/"))
+    end
+    exec("cd #{path}")
   end
 
-  def self.top_dir=(d)
-    @@top_dir = d
+  def self.mountpoint=(d)
+    @@local_mp = Pathname.new(d)
   end
 
-  def self.top_dir
-    @@top_dir
+  def self.mountpoint
+    @@local_mp.to_s
   end
 
   def self.gf_pwd
-    Utils.trim_prefix(@@top_dir, Dir::pwd)
+    #Utils.trim_prefix(@@local_mp, Dir.getwd)
+    "/" + Pathname.pwd.relative_path_from(@@local_mp).to_s
   end
 
   def self.gf_path(path)
-    if %r|^\/| =~ path
-      Utils.trim_prefix(@@top_dir, path)
+    pn = Pathname(path)
+    if pn.absolute?
+      pn = pn.relative_path_from(@@local_mp)
     else
-      gf_pwd + '/' + path
+      pn = Pathname.pwd.relative_path_from(@@local_mp) + pn
     end
+    "/" + pn.to_s
   end
 
-  module Utils
-    def trim_prefix(t,d)
-      if t != d[0,t.size]
-	raise "directory '#{d}' is not under Gfarm mount point: '#{t}'"
+  #def self.gf_path(path)
+  #  if %r|^\/| =~ path
+  #    Utils.trim_prefix(@@local_mp, path)
+  #  else
+  #    gf_pwd + '/' + path
+  #  end
+  #end
+
+  def self.set_mountpoint
+    mountpoint = ENV["GFARM_MOUNTPOINT"] || ENV["GFARM_MP"]
+    if !mountpoint
+      path = Pathname.new(Dir.pwd)
+      while ! path.mountpoint?
+        path = path.parent
       end
-      d[t.size..-1]
+      mountpoint = path
     end
-    module_function :trim_prefix
+    @@local_mp = mountpoint
   end
+
+  #module Utils
+  #  def trim_prefix(t,d)
+  #    t = t.to_s
+  #    d = d.to_s
+  #    if t != d[0,t.size]
+  #      raise "directory '#{d}' is not under Gfarm mount point: '#{t}'"
+  #    end
+  #    d[t.size..-1]
+  #  end
+  #  module_function :trim_prefix
+  #end
 
   def self.gfwhere(list)
     result = {}
@@ -100,46 +134,11 @@ class GfarmSSH < SSH
     result
   end
 
-
-  def self.gfwhereold(list)
-    cmd = "gfwhere"
-    gfwhere_result = {}
-	result = ""
-	list.each do |a|
-	  if a # = application[r].prerequisites[0]
-	    #puts "---- GfarmSSH.gf_path(a)=#{GfarmSSH.gf_path(a)}"
-	    path = GfarmSSH.gf_path(a)
-	    if cmd.size + path.size + 1 > 20480 # 131000
-	      result << `#{cmd}`
-	      result << "\n"
-	      cmd = "gfwhere"
-	    end
-	    cmd << " "
-	    cmd << path
-	  end
-	end
-	result << `#{cmd}`
-
-	result.split("\n\n").each{|x|
-	  if /(\S+):\n(.+)/m =~ x
-	    f,h = $1,$2
-	    h = h.split
-	    if !h.empty?
-	      gfwhere_result[f] = h
-	    end
-	  end
-	}
-    gfwhere_result
-  end
-
-  END{
-    OPEN_LIST.map{|k,v| Thread.new(v){|s| s.close}}.each{|t| t.join}
-  }
 end
 
 
 
-#GfarmSSH.top_dir = "/tmp/tanaka"
+#GfarmSSH.mountpoint = "/tmp/tanaka"
 #list = Dir.glob('*.fits')
 #where = GfarmSSH.gfwhere(list)
 #list.each{|x| w=where[GfarmSSH.gf_path(x)]; p [x,w] if !w}

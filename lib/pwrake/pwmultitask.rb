@@ -297,18 +297,22 @@ module Rake
     end
 
     def set_filesystem(mode=nil)
-      case mode || ENV["INVOKE_MODE"] || ENV["MODE"]
-      when /^group|graph|partition/
-        Rake.application.options.mode = "graph_partition"
-      when /^af/
-        Rake.application.options.mode = "affinity"
-      else
-        Rake.application.options.mode = "none"
-      end
+      #case mode || ENV["INVOKE_MODE"] || ENV["MODE"]
+      #when /^group|graph|partition/
+      #  Rake.application.options.mode = "graph_partition"
+      #when /^af/
+      #  Rake.application.options.mode = "affinity"
+      #  Rake.application.options.affinity = true
+      #else
+      #  Rake.application.options.mode = "none"
+      #end
+      #puts "INVOKE_MODE=#{Rake.application.options.mode}"
 
       case ENV["FILESYSTEM"] || ENV["FS"]
       when "gfarm"
         Rake.application.options.gfarm = true
+        Rake.application.options.mode = "affinity"
+        Rake.application.options.affinity = true
         puts "FILESYSTEM=Gfarm"
 
         mountpoint = ENV["MOUNTPOINT"] || ENV["MP"]
@@ -319,23 +323,28 @@ module Rake
         puts "FILESYSTEM=non-Gfarm"
       end
 
+      Rake.application.options.gfarm_mountpoint = 
+        ENV["GFARM_MOUNTPOINT"] || ENV["GFARM_MP"]
     end
 
     def prepare_ssh
       time_init_ssh = Time.now
       ssh_list = []
       if Rake.application.options.gfarm
-        GfarmSSH.top_dir = top = "/tmp/"+ENV['USER']
+        GfarmSSH.set_mountpoint
         th = []
         Rake.application.core_list.each_with_index {|h,i|
-          th << Thread.new(h,"%s%03d"%[top,i]) {|x,y|
+          mnt_dir = "%s%03d" % [GfarmSSH.mountpoint,i]
+          th << Thread.new(h,mnt_dir) {|x,y|
             if Rake.application.options.single_mp
               #puts "# create SSH to #{x}"
-              ssh_list << GfarmSSH.new(x) 
+              ssh = GfarmSSH.new(x) 
             else
               #puts "# create SSH to #{x}:#{y}"
-              ssh_list << GfarmSSH.new(x,y)
+              ssh = GfarmSSH.new(x,y)
             end
+            ssh.cd_cwd
+            ssh_list << ssh
           }
         }
         th.each{|t| t.join}
@@ -343,7 +352,9 @@ module Rake
       else
         Rake.application.core_list.map {|h|
           Thread.new(h) {|x|
-            ssh_list << SSH.new(x) 
+            ssh = SSH.new(x) 
+            ssh.cd_cwd
+            ssh_list << ssh
           }
         }.each{|t| t.join}
       end

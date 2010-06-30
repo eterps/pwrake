@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby
+#! /usr/bin/ruby
 
 #--
 # Copyright (c) 2003, 2004, 2005, 2006, 2007  Jim Weirich
@@ -28,8 +28,6 @@ rescue LoadError
   require 'rubygems'
   require 'rake'
 end
-require "pwrake_addin.rb"
-#alias pw_multitask :multitask
-
+require "pwrake.rb"
 
 Rake.application.run
