@@ -348,7 +348,7 @@ module Rake
           }
         }
         th.each{|t| t.join}
-        system "ps x"
+        #system "ps x"
       else
         Rake.application.core_list.map {|h|
           Thread.new(h) {|x|
