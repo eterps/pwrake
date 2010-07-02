@@ -1,0 +1,6 @@
+### Pwrake example 2 ###
+
+$ cd lib/libgfarm/gfarm
+
+$ pwrake FS=gfarm NODEFILE=nodes
+

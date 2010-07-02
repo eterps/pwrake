@@ -1,0 +1,16 @@
+require "rake/clean"
+
+SRC = FileList["*.in"]
+OUT = SRC.ext('out')
+
+rule ".out" => ".in" do |t|
+  t.rsh "(
+    echo 'hostname: '`hostname`
+    echo 'filenode: '`gfwhere #{GfarmSSH.gf_pwd}/#{t.prerequisites[0]}`
+    echo 'pwd:      '`pwd`
+    ) > #{t.name}"
+end
+
+pw_multitask :default => OUT
+
+CLEAN.include("*.out")

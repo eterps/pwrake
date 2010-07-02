@@ -1,0 +1,83 @@
+require "rake/clean"
+
+LIBTOOL='/bin/sh ../../../libtool'
+CC='cc'
+CFLAGS='-D_REENTRANT -pthread -g -O2 -Wall -D_GNU_SOURCE -I../../../include -I../gfutil -I. -DGFARM_CONFIG=\"/usr/local/etc/gfarm2.conf\"'
+
+LTCOMPILE="#{LIBTOOL} --mode=compile #{CC} #{CFLAGS}"
+LTLINK="#{LIBTOOL} --mode=link #{CC} #{CFLAGS}"
+
+SRC = FileList[%w[
+liberror.c
+hostspec.c
+host.c
+param.c
+sockopt.c
+auth_config.c
+stringlist.c
+config.c
+config_server.c
+config_client.c
+import_help.c
+iobuffer.c
+gfp_xdr.c
+gfs_proto.c
+io_fd.c
+metadb_common.c
+auth_common.c
+auth_client.c
+auth_server.c
+auth_server_uid.c
+conn_hash.c
+conn_cache.c
+gfm_client.c
+gfs_client.c
+lookup.c
+gfs_io.c
+gfs_dir.c
+gfs_dirplus.c
+gfs_dircache.c
+gfs_pio.c
+gfs_pio_section.c
+gfs_pio_local.c gfs_pio_remote.c
+gfs_profile.c
+gfs_chmod.c
+gfs_chown.c
+gfs_link.c
+gfs_stat.c
+gfs_statfs.c
+gfs_statfsnode.c
+gfs_statsw.c
+gfs_mkdir.c
+gfs_quota.c
+gfs_readlink.c
+gfs_remove.c
+gfs_rename.c
+gfs_replica.c
+gfs_replicate.c
+gfs_rmdir.c
+gfs_symlink.c
+gfs_unlink.c
+gfs_util.c
+gfs_utimes.c
+gfs_xattr.c
+gfarm_foreach.c
+glob.c
+schedule.c
+sockutil.c
+timespec.c
+url.c 
+]]
+
+LOBJ=SRC.ext("lo")
+CLEAN.include("*.o", "*.lo","libgfarmcore.la",".libs")
+
+rule ".lo" => ".c" do |t|
+  t.rsh "#{LTCOMPILE} -c #{t.prerequisites[0]}"
+end
+
+pw_multitask "libgfarmcore.la" => LOBJ do |t|
+  sh "#{LTLINK} -o #{t.name} #{t.prerequisites.join(' ')}"
+end
+
+task :default => "libgfarmcore.la"
