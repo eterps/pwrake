@@ -16,51 +16,6 @@ module Rake
       @weight || 0
     end
 
-    alias orig_invoke_prerequisites :invoke_prerequisites
-
-    def invoke_prerequisites(task_args, invocation_chain)
-      @prerequisites.each { |n|
-        prereq = application[n, @scope]
-        prereq_args = task_args.new_scope(prereq.arg_names)
-        prereq.ssh = ssh
-        prereq.invoke_with_call_chain(prereq_args, invocation_chain)
-      }
-    end
-
-    def rsh(*cmd, &block)
-      options = (Hash === cmd.last) ? cmd.pop : {}
-      unless block_given?
-        show_command = cmd.join(" ")
-        show_command = show_command[0,42] + "..." unless $trace
-        # TODO code application logic heref show_command.length > 45
-        block = lambda { |ok, status|
-          ok or fail "Command failed with status (#{status.exitstatus}): [#{show_command}]"
-        }
-      end
-      if RakeFileUtils.verbose_flag == :default
-        options[:verbose] = true
-      else
-        options[:verbose] ||= RakeFileUtils.verbose_flag
-      end
-      options[:noop]    ||= RakeFileUtils.nowrite_flag
-      rake_check_options options, :noop, :verbose
-      rake_output_message cmd.join(" ") if options[:verbose]
-      unless options[:noop]
-	start_time = Time.now.to_f
-	application.logger.puts "pw_rsh[start]: name=%s,cmd=\"%s\",end=%.3f"%[name,cmd,start_time] 
-        if ssh
-          res = ssh.exec(*cmd)
-        else
-          res = system(*cmd)
-        end
-	end_time = Time.now.to_f
-	elap_time = end_time - start_time
-	application.logger.puts "pw_rsh[end]: name=%s,cmd=\"%s\",end=%.3f,elap=%.3f"%[name,cmd,end_time,elap_time] 
-	res
-      end
-    end
-
-
     # Trace the task if it is needed.  Prerequites are traced first.
     def dag_trace
       trace_with_call_chain(InvocationChain::EMPTY)
@@ -94,19 +49,20 @@ module Rake
     def invoke_prerequisites_in_queue(mqueue)
       # Spawn worker threads
       pool = []
-      Rake.application.ssh_list.each_with_index do |ssh,idx|
-	th = Thread.new do
-	  if application.options.trace
-	    puts "** Worker ##{idx}(#{ssh.host}) is ready."
-	  end
-	  while job = mqueue.pop(ssh.host)
-	    job.call(ssh)
-	    if application.options.trace
-	      puts "** Worker ##{idx}(#{ssh.host}) is called."
-	    end
-	  end
-	end
-	pool.push(th)
+      Rake.application.ssh_list.each_with_index do |ssh0,idx|
+        th = Thread.new(ssh0) do |ssh|
+          Thread.current[:ssh] = ssh
+          if application.options.trace
+            puts "** Worker ##{idx}(#{ssh.host}) is ready."
+          end
+          while job = mqueue.pop(ssh.host)
+            job.call
+            if application.options.trace
+              puts "** Worker ##{idx}(#{ssh.host}) is called."
+            end
+          end
+        end
+        pool.push(th)
       end
 
       # shutdown
@@ -121,13 +77,13 @@ module Rake
       # Gfarm affinity
       gfwhere_result = {}
       if Rake.application.options.gfarm # and @@affinity
-	list = []
-	@prerequisites.each{|r|
-	  if a=application[r].prerequisites[0]
-	    list << a
-	  end
-	}
-	gfwhere_result = GfarmSSH.gfwhere(list)
+        list = []
+        @prerequisites.each{|r|
+          if a=application[r].prerequisites[0]
+            list << a
+          end
+        }
+        gfwhere_result = GfarmSSH.gfwhere(list)
       end
 
       application.logger.finish("multitask_ssh(#{name})[gfwhere]",time_start)
@@ -137,27 +93,27 @@ module Rake
       # create processes
       @prerequisites.each do |r|
         prereq = application[r]
-	if Rake.application.options.gfarm and afile = prereq.prerequisites[0]
-	  gfwhere_list = gfwhere_result[GfarmSSH.gf_path(afile)]
-	else
-	  gfwhere_list = nil
-	end
-	block = proc{|ssh|
-	  Rake.application.counter.count( gfwhere_list, ssh.host ) 
-	  if Rake.application.options.gfarm and ssh #  if @@affinity and ssh
-	    if gfwhere_list and gfwhere_list.include? ssh.host
-	      compare = "==" 
-	    else
-	      compare = "!="
-	    end
-	    s = "** Affinity for #{afile}: gfwhere=#{gfwhere_list.inspect} #{compare} ssh.host=#{ssh.host}"
-	    application.logger.puts s
-	    puts s if application.options.trace
-	  end
-	  prereq.ssh = ssh
-	  prereq.invoke_with_call_chain(task_args, invocation_chain)
-	}
-	mqueue.push( Rake.application.options.affinity && gfwhere_list, block )
+        if Rake.application.options.gfarm and afile = prereq.prerequisites[0]
+          gfwhere_list = gfwhere_result[GfarmSSH.gf_path(afile)]
+        else
+          gfwhere_list = nil
+        end
+        block = proc{
+          ssh = Thread.current[:ssh]
+          Rake.application.counter.count( gfwhere_list, ssh.host ) 
+          if Rake.application.options.gfarm and ssh #  if @@affinity and ssh
+            if gfwhere_list and gfwhere_list.include? ssh.host
+              compare = "==" 
+            else
+              compare = "!="
+            end
+            s = "** Affinity for #{afile}: gfwhere=#{gfwhere_list.inspect} #{compare} ssh.host=#{ssh.host}"
+            application.logger.puts s
+            puts s if application.options.trace
+          end
+          prereq.invoke_with_call_chain(task_args, invocation_chain)
+        }
+        mqueue.push( Rake.application.options.affinity && gfwhere_list, block )
       end
 
       application.logger.finish("multitask_ssh(#{name})[prepare]",time_start)
@@ -180,14 +136,15 @@ module Rake
       @prerequisites.each do |r|
         prereq = application[r]
         afile = prereq.prerequisites[0]
-	if application.options.mode == "graph_partition" && prereq.partition
-	  dispatch_list = Rake.application.node_group[ prereq.partition ]
-	else
-	  dispatch_list = nil
-	end
-	application.logger.puts "** name=#{prereq.name} dispatch_list=#{dispatch_list.inspect}" 
+        if application.options.mode == "graph_partition" && prereq.partition
+          dispatch_list = Rake.application.node_group[ prereq.partition ]
+        else
+          dispatch_list = nil
+        end
+        application.logger.puts "** name=#{prereq.name} dispatch_list=#{dispatch_list.inspect}" 
     
-        block = proc{|ssh|
+        block = proc{
+          ssh = Thread.current[:ssh]
           Rake.application.counter.count( dispatch_list, ssh.host ) 
           if Rake.application.options.gfarm and ssh
             if dispatch_list and dispatch_list.include? ssh.host
@@ -199,7 +156,6 @@ module Rake
             application.logger.puts s if @@dag_done
             puts s if application.options.trace
           end
-          prereq.ssh = ssh
           prereq.invoke_with_call_chain(task_args, invocation_chain)
         }
         mqueue.push( dispatch_list, block )
@@ -216,9 +172,9 @@ module Rake
     def invoke_prerequisites(task_args, invocation_chain)
       case application.options.mode
       when "affinity"
-	invoke_prerequisites_affinity(task_args, invocation_chain)
+        invoke_prerequisites_affinity(task_args, invocation_chain)
       else
-	invoke_prerequisites_graph(task_args, invocation_chain)
+        invoke_prerequisites_graph(task_args, invocation_chain)
       end
     end
 
@@ -370,25 +326,25 @@ module Rake
       @vertex_list = Metis::VertexList.new
       n_part = Rake.application.options.npart
       if n_part && n_part > 1
-	@part = @vertex_list.partition(n_part)
-	count_same = 0
-	count_cut  = 0
-	@vertex_list.each do |v|
-	  Rake.application[v.name].partition = part = @part[v.index]
-	  v.adj.each{|adj_vtx, wei|
-	    if part == @part[adj_vtx.index]
-	      count_same += 1
-	    else
-	      count_cut += 1
-	    end
-	  }
-	end
-	Rake.application.logger.puts "***partition: nocut edges = #{count_same/2}"
-	Rake.application.logger.puts "***partition:   cut edges = #{count_cut/2}"
+        @part = @vertex_list.partition(n_part)
+        count_same = 0
+        count_cut  = 0
+        @vertex_list.each do |v|
+          Rake.application[v.name].partition = part = @part[v.index]
+          v.adj.each{|adj_vtx, wei|
+            if part == @part[adj_vtx.index]
+              count_same += 1
+            else
+              count_cut += 1
+            end
+          }
+        end
+        Rake.application.logger.puts "***partition: nocut edges = #{count_same/2}"
+        Rake.application.logger.puts "***partition:   cut edges = #{count_cut/2}"
       else
-	@vertex_list.each do |v|
+        @vertex_list.each do |v|
           Rake.application[v.name].partition = 0
-	end
+        end
       end
       @@dag_done = true
       Rake.application.logger.finish("partition[end]",time_start) 
@@ -437,6 +393,52 @@ module Rake
   end
 
 end # module Rake
+
+
+module FileUtils
+  alias sh_org :sh
+
+  def sh(*cmd, &block)
+    options = (Hash === cmd.last) ? cmd.pop : {}
+    unless block_given?
+      show_command = cmd.join(" ")
+      show_command = show_command[0,42] + "..." unless $trace
+      # TODO code application logic heref show_command.length > 45
+      block = lambda { |ok, status|
+        ok or fail "Command failed with status (#{status.exitstatus}): [#{show_command}]"
+      }
+    end
+    if RakeFileUtils.verbose_flag == :default
+      options[:verbose] = true
+    else
+      options[:verbose] ||= RakeFileUtils.verbose_flag
+    end
+    options[:noop]    ||= RakeFileUtils.nowrite_flag
+    rake_check_options options, :noop, :verbose
+    rake_output_message cmd.join(" ") if options[:verbose]
+    unless options[:noop]
+      cmd_log = cmd.join(" ").inspect
+      start_time = Time.now
+      Rake.application.logger.puts(
+        "sh[start]:%s cmd=%s"%[Rake::Logger.time_str(start_time),cmd_log])
+      if ssh=Thread.current[:ssh]
+        res = ssh.exec(*cmd)
+        status = Rake::PseudoStatus.new(ssh.status)
+        status = PseudoStatus.new(1) if !res && ssh.status.nil?
+      else
+        res = system(*cmd)
+        status = $?
+        status = PseudoStatus.new(1) if !res && status.nil?
+      end
+      end_time = Time.now
+      elap_time = end_time - start_time
+      Rake.application.logger.puts(
+        "sh[end]:%s elap=%.3f status=%s cmd=%s"%
+        [Rake::Logger.time_str(end_time),elap_time,status.exitstatus,cmd_log])
+      block.call(res, status)
+    end
+  end
+end
 
 
 def pw_multitask(*args, &block)
