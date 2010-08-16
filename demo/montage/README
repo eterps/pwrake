@@ -9,19 +9,20 @@ Pwrake workflow demo : Montage
 
 2. Compile Montage
 
-  tar xvzf Montage_v3.2_beta6.tar.gz
-  cd Montage_v3.2_beta6
-  make
-  cd ..
+ $ tar xvzf Montage_v3.2_beta6.tar.gz
+ $ cd Montage_v3.2_beta6
+ $ make
+ $ cd ..
 
 3. Download sample images
 
-  wget http://montage.ipac.caltech.edu/docs/m101Example/tutorial-initial.tar.gz
-  tar xvzf tutorial-initial.tar.gz
+ $ wget http://montage.ipac.caltech.edu/docs/m101Example/tutorial-initial.tar.gz
+   (file size = 15.4 MB)
+ $ tar xvzf tutorial-initial.tar.gz
 
 4. Write nodefile
 
-  cat nodefile
+ $ cat nodefile
   host1.ne.jp 2
   host2.ne.jp 2
   ...
@@ -30,16 +31,18 @@ Pwrake workflow demo : Montage
 
  * Non parallel execution
 
-  - Just type rake or ./pwrake
+   $ rake
+    or
+   $ ./pwrake
 
  * Parallel execution
 
   - for NFS
 
-    ./pwrake NODEFILE=nodefile
+   $ ./pwrake NODEFILE=nodefile
 
   - for Gfarm
 
-    ./pwrake NODEFILE=nodefile FS=gfarm
+   $ ./pwrake NODEFILE=nodefile FS=gfarm
 
    Then you can find mosaic.jpg and shrunk.jpg.

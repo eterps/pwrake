@@ -5,8 +5,8 @@ require 'pwrake/affinity' if defined? Pwrake
 task( :default => "mosaic.jpg" )
 task( :default => "shrunk.jpg" )
 
-dir=Dir.glob(Dir.pwd+"/Montage_v*/bin")
-ENV['PATH'] = "#{dir}:"+ENV['PATH']
+dir=Dir.glob(Dir.pwd+"/Montage_*/bin")
+ENV['PATH'] = "#{dir.last}:"+ENV['PATH']
 puts "ENV['PATH']=#{ENV['PATH']}"
 
 INPUT_DIR = ENV["INPUT_DIR"] || "m101/rawdir"
@@ -83,7 +83,6 @@ file( "fitfits.tbl" => "diffs.tbl" ) do
 end
 
 
-
 ### background-model
 
 file( "corrections.tbl" => ["fitfits.tbl", "pimages.tbl"] ) do
@@ -112,8 +111,6 @@ file( "cimages.tbl" => ["corrections.tbl","pimages.tbl"] ) do
     Montage.put_imgtbl( C_IMGTBL, "c", "cimages.tbl" )
   end.invoke
 end
-
-
 
 
 ### tile region
