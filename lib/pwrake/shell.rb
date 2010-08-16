@@ -28,7 +28,7 @@ module Pwrake
     end
 
     def open(cmd,path=nil)
-      if !path
+      if path.nil?
         path = ENV['PATH']
       end
       @lock.synchronize do

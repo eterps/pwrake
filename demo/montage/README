@@ -27,7 +27,15 @@ Pwrake workflow demo : Montage
   host2.ne.jp 2
   ...
 
-5. Execute Workflow
+5. Set command search PATH
+
+ * bash
+  $ export PATH=`pwd`/Montage_v3.2_beta6/bin:$PATH
+
+ * csh
+  % setenv PATH `pwd`/Montage_v3.2_beta6/bin:$PATH
+
+6. Execute Workflow
 
  * Non parallel execution
 

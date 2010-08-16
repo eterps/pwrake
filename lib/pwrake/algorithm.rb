@@ -107,15 +107,15 @@ module Pwrake
       host = conn.host
       standard_exception_handling do
         while task = @input_queue.pop(host)
-          log "-- worker[#{i}] start : #{task.inspect}"
+          log "-- worker[#{i}] start task: #{task}"
           task = @scheduler.on_execute(task)
           task.already_invoked = true
           task.execute #if task.needed?
           task.output_queue.push(task)
-          log "-- worker[#{i}] end : #{task}"
+          log "-- worker[#{i}] end task: #{task}"
         end
       end
-      log "-- worker[#{i}] loopout : #{task.inspect}"
+      log "-- worker[#{i}] loopout : #{task}"
       # @scheduler.on_thread_end
     end
 
@@ -125,20 +125,13 @@ module Pwrake
         yield
       rescue SystemExit => ex
         # Exit silently with current status
-        #p ex
-        #p "pass1"
         @input_queue.stop
         raise
       rescue OptionParser::InvalidOption => ex
         # Exit silently
-        #p ex
-        #p "pass2"
         @input_queue.stop
         exit(false)
-        #raise
       rescue Exception => ex
-        #p ex
-        #p "pass3"
         # Exit with error message
         name = "pwrake"
         $stderr.puts "#{name} aborted!"
@@ -151,7 +144,6 @@ module Pwrake
         end
         @input_queue.stop
         exit(false)
-        #raise
       end
     end
 
@@ -188,21 +180,19 @@ module Pwrake
       end
       log "--- End of Task # invoke #{root.inspect}, #{args.inspect} thread=#{Thread.current.inspect}"
       if thread
+        @input_queue.thread_end(thread)
+        thread.join
         log "-- new worker[#{j}] exit"
-        thread.exit
+        #thread.exit
       end
     end
 
     def finish
       log "-- Operator#finish called ---"
       @scheduler.on_finish
-      #puts "-- Operator # finish pass1 ---"
       @input_queue.finish
-      #puts "-- Operator # finish pass2 ---"
       #Thread.pass
-      #puts "-- Operator # finish pass3 ---"
       @workers.each{|t| t.join }
-      #puts "-- Operator # finish pass4 ---"
     end
   end
 
@@ -229,13 +219,10 @@ module Rake
       root = self[name]
       begin
         operator = Pwrake.manager.operator
-        log "-- Application # invoke_task # invoke start ---"
         operator.invoke(root,args)
-        log "-- Application # invoke_task # invoke end ---"
       ensure
         operator.finish if operator
       end
-      #puts "end invoke"
     end
 
     attr_reader :operator

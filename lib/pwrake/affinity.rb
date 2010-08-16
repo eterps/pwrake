@@ -65,7 +65,7 @@ module Pwrake
 
     def on_thread_end
       puts "-- $cv.broadcast"
-      $cv.broadcast
+      # $cv.broadcast
     end
 
     def queue_class
@@ -76,7 +76,7 @@ module Pwrake
   manager.scheduler_class = GfarmAffinityScheduler
 
 
-  class AffinityQueue
+  class AffinityQueue < TaskQueue
 
     class Throughput
 
@@ -138,8 +138,6 @@ module Pwrake
     class HostQueue
 
       def initialize(hosts)
-        #puts "HostQueue.initialize"
-        #p hosts
         @hosts = hosts
         @q = {}
         @hosts.each{|h| @q[h]=[]}
@@ -151,14 +149,17 @@ module Pwrake
       attr_reader :size
 
       def push(j)
-        j.locality.each do |h|
-          #puts "locality=#{h}"
-          if q = @q[h]
-            j.assigned.push(h)
-            q.push(j)
+        stored = false
+        if j.respond_to? :locality
+          j.locality.each do |h|
+            if q = @q[h]
+              j.assigned.push(h)
+              q.push(j)
+              stored = true
+            end
           end
         end
-        if j.assigned.empty?
+        if !stored
           @q[@hosts[rand(@hosts.size)]].push(j)
         end
         @size += 1
@@ -166,11 +167,12 @@ module Pwrake
 
       #require "pp"
       def pop(host)
-        #pp @q
         q = @q[host]
         if q && !q.empty?
           j = q.shift
-          j.assigned.each{|x| @q[x].delete_if{|x| j.equal? x}}
+          #if j.respond_to? :assigned
+            j.assigned.each{|x| @q[x].delete_if{|x| j.equal? x}}
+          #end
           @size -= 1
           return j
         else
@@ -201,125 +203,12 @@ module Pwrake
       def clear
         @hosts.each{|h| @q[h].clear}
       end
-=begin
-      def retrieve_task(host)
-        q = @q[host]
-        if q && !q.empty?
-          j = q.shift
-          j.assigned.each{|x| @q[x].delete_if{|x| j.equal? x}}
-          return j
-        else
-          nil
-        end
-      end
-
-      def pop(host)
-        if j = retrieve_task(host) # found task assigend to host
-          return j
-        else
-          # select a task based on many and close
-          max_host = nil
-          max_num  = 0
-          @q.each do |h,a|
-            if !a.empty?
-              d = @throughput.interhost(host,h) * a.size
-              if d > max_num
-                max_host = h
-                max_num  = d
-              end
-            end
-          end
-          if max_host
-            return retrieve_task(max_host)
-          end
-        end
-      end
-=end
-
 
     end # class HostQueue
 
-
-    # class AffinityQueue
-
     def initialize(hosts=[])
-      @n_hosts = hosts.size
-      #puts "-- AffinityQueue # @n_hosts = #{@n_hosts}"
-      @count_jobs = 0
-      @finished = false
-      # @mutex = Monitor.new
-      @mutex = Mutex.new
-      # @exist = ConditionVariable.new
-      # $cv = @cv = @mutex.new_cond
-      $cv = @cv = ConditionVariable.new
       @q = HostQueue.new(hosts.uniq)
-    end
-
-    def push(tasks)
-      if @finished
-        raise "finished queue: cannot append task"
-      end
-      @mutex.synchronize do
-        if !tasks.kind_of? Array
-          tasks = [tasks]
-        end
-        #p tasks
-        tasks.each do |task|
-          #unless task.kind_of? QueuedTask
-          #  task = QueuedTask.new(task)
-          #end
-          #puts "push #{task.locality}"
-          @q.push(task)
-        end
-        @cv.broadcast
-      end
-    end
-
-    #require "pp"
-
-    def pop(host=nil)
-      #puts "---- pop #{host.inspect}"
-      @mutex.synchronize do
-        # if host
-          i = 0
-          loop do
-            if j = @q.pop(host)
-              # puts "-- found #{host.inspect}"
-              @cv.signal
-              return j
-            elsif @finished # no task in queue
-              @cv.signal
-              return false
-            elsif i >= @n_hosts
-              if j = @q.pop_alt(host)
-                @cv.signal
-                return j
-              end
-            else
-              i += 1
-            end
-          # puts "-- i=#{i} #{host.inspect} Thread=#{Thread.current.inspect}"
-            @cv.signal
-            @cv.wait(@mutex)
-          end
-        #else
-        #  j = @q.pop(nil)
-        #  @cv.signal
-        #  return j
-        #end
-      end
-    end
-
-    def finish
-      @finished = true
-      @cv.signal
-    end
-
-    def stop
-      @mutex.synchronize do
-        @q.clear
-        finish
-      end
+      super(hosts)
     end
 
   end # class AffinityQueue

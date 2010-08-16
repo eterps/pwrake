@@ -1,6 +1,5 @@
 require 'montage_tools'
 require 'rake/clean'
-require 'pwrake/affinity' if defined? Pwrake
 
 task( :default => "mosaic.jpg" )
 task( :default => "shrunk.jpg" )

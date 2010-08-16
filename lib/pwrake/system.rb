@@ -27,3 +27,7 @@ module FileUtils
   end
 
 end
+
+if !defined? FileUtils::PseudoStatus
+  FileUtils::PseudoStatus = Rake::PseudoStatus
+end

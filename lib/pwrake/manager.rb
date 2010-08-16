@@ -38,7 +38,6 @@ module Pwrake
     include Log
     attr_reader :node_group
     attr_reader :core_list
-    attr_reader :connection_list
     attr_reader :counter
     attr_reader :threads
     attr_reader :logger
@@ -54,10 +53,16 @@ module Pwrake
       @scheduler_class ||= Scheduler
     end
 
+    def connection_list
+      setup_connection if @connection_list.nil?
+      @connection_list
+    end
+
     def initialize
       @logfile = nil
       @logger = Logger.new
       @prepare_done = false
+      @connection_list = nil
     end
 
 
@@ -66,7 +71,7 @@ module Pwrake
         @counter = Counter.new
         setup_hostlist
         setup_filesystem(scheduling)
-        setup_connection
+        # setup_connection
         @prepare_done = true
       end
     end
@@ -139,10 +144,11 @@ module Pwrake
         @scheduling = :affinity
         @affinity = true
         log "FILESYSTEM=Gfarm"
+        require "pwrake/affinity"
         #
-        mountpoint = ENV["MOUNTPOINT"] || ENV["MP"]
-        @single_mp = mountpoint && /single/=~mountpoint
-        log "MOUNTPOINT=#{mountpoint}"
+        #mountpoint = ENV["MOUNTPOINT"] || ENV["MP"]
+        #@single_mp = mountpoint && /single/=~mountpoint
+        #log "MOUNTPOINT=#{mountpoint}"
       else
         @gfarm = false
         log "FILESYSTEM=non-Gfarm"
