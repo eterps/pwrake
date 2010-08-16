@@ -23,7 +23,7 @@ class Counter
   end
 
   def print
-    out = Rake.application.logger
+    out = Pwrake.manager.logger
     out.puts "same=#{@same}, diff=#{@diff}, total=#{@total}"
     keys = @same_hosts.keys.sort
     out.puts "same_hosts = {"

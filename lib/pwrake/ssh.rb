@@ -1,81 +1,31 @@
 require "thread"
 
-class SSH
-  CHARS='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!"#=~{*}?_-^@[],./'
-  TLEN=78
+module Pwrake
 
-  OPEN_LIST={}
+  class SSH < Shell
 
-  def self.nice=(nice)
-    @@nice=nice
-  end
+    attr_reader :host
 
-  @@nice="nice"
-
-  def initialize(host)
-    @lock = Mutex.new
-    @terminator = ""
-    TLEN.times{ @terminator << CHARS[rand(CHARS.length)] }
-    @host = host
-    @lock.synchronize do
-      @io = IO.popen("ssh -x -T -q #{host}","r+")
-      @io.puts("export PATH='#{ENV['PATH']}'")
-      @io.puts("#{@@nice} sh")
-      #@io.puts("cd #{Dir::pwd}")
-      _get
-    end
-    OPEN_LIST[__id__] = self
-  end
-
-  attr_reader :host, :status
-
-  def close
-    @lock.synchronize do
-      @io.puts("exit")
-      @io.puts("exit")
-      @io.close
-    end
-    OPEN_LIST.delete(__id__)
-  end
-
-  def exec(command)
-    @lock.synchronize do
-      @io.puts(command)
-      _get
-    end
-  end
-
-  def cd(dir)
-    exec("cd #{dir}")
-  end
-
-  def cd_cwd
-    exec("cd #{Dir.pwd}")
-  end
-
-  #def fs_pwd
-  #  exec("pwd")[0]
-  #end
-
-  END{
-    OPEN_LIST.map{|k,v| Thread.new(v){|s| s.close}}.each{|t| t.join}
-  }
-
-  private
-  def _get
-    @io.puts "\necho '#{@terminator}':$? "
-    a = []
-    while x = @io.gets
-      x.chomp!
-      if x[0,TLEN] == @terminator
-	@status = Integer(x[TLEN+1..-1])
-	break
+    def system_cmd(*arg)
+      if arg.size != 1
+        raise ArgumentError, "wrong number of argument (1 for %d)"%[arg.size]
       end
-      puts x
-      a << x
+      @host = arg[0]
+      "ssh -x -T -q #{@host} #{@@nice} #{@@shell}"
     end
-    a
+
+    def self.connect_list( hosts )
+      connections = []
+      hosts.map do |h|
+        Thread.new(h) {|x|
+          ssh = SSH.new(x) 
+          ssh.cd_cwd
+          connections << ssh
+        }
+      end.each{|t| t.join}
+      connections
+    end
+
   end
-end
 
-
+end # module Pwrake

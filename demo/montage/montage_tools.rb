@@ -48,20 +48,21 @@ module Montage
   end
 
   def write_imgtbl(imgtbl, tblfile)
-    basename = File.basename(tblfile)
-    dirname = File.dirname(tblfile)
-    tmpname = "/tmp/"+basename
+    #basename = File.basename(tblfile)
+    #dirname = File.dirname(tblfile)
+    #tmpname = "/tmp/"+basename
     maxlen = 0
     imgtbl.each{|x| maxlen=x.size if x.size>maxlen}
     nspc = maxlen-243
     nspc = 0 if nspc<0
-    open(tmpname,"w") do |f|
+    #open(tmpname,"w") do |f|
+    open(tblfile,"w") do |f|
       f.puts '\datatype = fitshdr'
       f.puts "| cntr |      ra     |     dec     |      cra     |     cdec     |naxis1|naxis2| ctype1 | ctype2 |     crpix1    |     crpix2    |    crval1   |    crval2   |      cdelt1     |      cdelt2     |   crota2    |equinox |    size    | hdu  | fname"+" "*nspc+"|"
       f.puts "| int  |    double   |    double   |      char    |    char      | int  | int  |  char  |  char  |     double    |     double    |    double   |    double   |      double     |      double     |   double    |  double|     int    | int  | char "+" "*nspc+"|"
       imgtbl.each_with_index{|x,i| f.puts " %6d%s"%[i,x[7..-1]]}
     end
-    FileUtils.mv(tmpname, dirname)
+    #FileUtils.mv(tmpname, dirname)
   end
   module_function :write_imgtbl
 
@@ -91,11 +92,27 @@ module Montage
 =end
 
   def write_fittxt_tbl(table, diffs)
-    w = open("fittxt.tbl","w")
+    puts "pass1"
+    begin
+      w = open("fittxt.tbl","w")
+    rescue
+      $stderr.puts "error in open fittxt.tbl"
+      exit
+    end
+    puts "pass2"
     w.puts "| cntr1 | cntr2 |       stat            |"
     w.puts "|  int  |  int  |       char            |"
+    puts "pass3"
     diffs.each do |c|
-      w.printf " %7d %7d %21s \n",c[0],c[1],c[4].sub(/^diff\.(.*)\.fits$/,'fit.\1.txt')
+      puts "pass4"
+      p c
+      begin
+        s = " %7d %7d %21s "%[c[0],c[1],c[4].sub(/^diff\.(.*)\.fits$/,'fit.\1.txt')]
+        w.puts s
+      rescue
+        $stderr.puts "error in write '#{s}'"
+        exit
+      end
     end
     w.close
   end
@@ -106,44 +123,47 @@ module Montage
   #[struct stat="OK", a=-7.16799e-08, b=1.23707e-07, c=0.951076, crpix1=-2131.5, crpix2=4183, xmin=2131.5, xmax=2635.5, ymin=-4183, ymax=-4126, xcenter=2383.75, ycenter=-4154.34, npixel=21774, rms=0.000326946, boxx=2383.51, boxy=-4154.25, boxwidth=504.141, boxheight=53.0168, boxang=0.553565]
 
   def write_fitfits_tbl(results, file)
-    #open("fitfits.tbl","w") do |f|
     open(file,"w") do |f|
       f.puts '| plus|minus|       a    |      b     |      c     | crpix1  | crpix2  | xmin | xmax | ymin | ymax | xcenter | ycenter |  npixel |    rms     |    boxx    |    boxy    |  boxwidth  | boxheight  |   boxang   |'
       n = "([0-9.e-]+)"
       results.each do |a|
 	name, r = a
-	begin
+        r = r[0] if r.kind_of?(Array)
+        #puts "name=#{name}, r=#{r}"
+	#begin
           case name
           when Array
             idx = name
 	  when /\.(\d+)\.(\d+)\./
             idx = $1,$2
           else
-	    puts "unmach : #{name}" 
+	    puts "unmach1 : #{name}" 
 	    raise
 	  end
-	  if /a=#{n}, b=#{n}, c=#{n}, crpix1=#{n}, crpix2=#{n}, xmin=#{n}, xmax=#{n}, ymin=#{n}, ymax=#{n}, xcenter=#{n}, ycenter=#{n}, npixel=#{n}, rms=#{n}, boxx=#{n}, boxy=#{n}, boxwidth=#{n}, boxheight=#{n}, boxang=#{n}/ !~ r[0]
-	    puts "unmach : #{r}" 
+	  if /a=#{n}, b=#{n}, c=#{n}, crpix1=#{n}, crpix2=#{n}, xmin=#{n}, xmax=#{n}, ymin=#{n}, ymax=#{n}, xcenter=#{n}, ycenter=#{n}, npixel=#{n}, rms=#{n}, boxx=#{n}, boxy=#{n}, boxwidth=#{n}, boxheight=#{n}, boxang=#{n}/ !~ r
+	    puts "unmach2 : #{r}"
 	    raise
 	  end
 	  args = (idx+Regexp.last_match[1..-1]).map{|x| x.to_f}
 	  f.puts " %5d %5d %12.5e %12.5e %12.5e %9.2f %9.2f %6d %6d %6d %6d %9.2f %9.2f %9.0f %12.5e %12.1f %12.1f %12.1f %12.1f %12.1f" % args
-	rescue
-	  
-	  puts "Error in Montage.write_fitfits_tbl"
-	end
+	#rescue
+	  #puts "Error in Montage.write_fitfits_tbl"
+	#end
       end
     end
   end
   module_function :write_fitfits_tbl
 
 
-  @@original_imgtbl = false
+  @@original_imgtbl = true
+  #@@original_imgtbl = false
 
   def collect_imgtbl( t, ary )
     if ! @@original_imgtbl
-      q = t.rsh "mImgHdr #{t.name}"
+      #q = sh "mImgHdr #{t.name}"
+      q = `mImgHdr #{t.name}`
       if q && q[0]
+        p q[0], File.basename(t.name)
         ary << q[0]+" "+File.basename(t.name)
       else
         puts "IMGTBL fail"

@@ -1,10 +1,7 @@
-module Rake
+module Pwrake
 
   class Logger
-
-    def self.time_str(t)
-      t.strftime("%Y-%m-%dT%H:%M:%S.%%06d") % t.usec
-    end
+    include Pwrake::Log
 
     def initialize(arg=nil)
       @out=nil
@@ -22,14 +19,14 @@ module Rake
         @closeable=true
       end
       @start_time = Time.now
-      @out.puts "LogStart="+Logger.time_str(@start_time)
+      @out.puts "LogStart="+time_str(@start_time)
     end
 
     def finish(str, start_time)
       if @out
         finish_time = Time.now
-        t1 = Logger.time_str(start_time)
-        t2 = Logger.time_str(finish_time)
+        t1 = time_str(start_time)
+        t2 = time_str(finish_time)
         elap = finish_time - start_time
         @out.puts "#{str} : start=#{t1} end=#{t2} elap=#{elap}"
       end
@@ -52,11 +49,13 @@ module Rake
   end # class Logger
 
 
+=begin
   class Application
     def logger
       @logger ||= Logger.new
     end
   end
+=end
 
-end # module Rake
+end # module Pwrake
 

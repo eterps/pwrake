@@ -7,7 +7,7 @@ rescue LoadError
   require 'rake'
 end
 
-$LOAD_PATH.push "../lib"
+$LOAD_PATH.push "../../lib"
 require "pwrake/load"
 
 Rake.application.run
