@@ -26,6 +26,7 @@ Pwrake workflow demo : Subaru SprimeCam
    (not included in this package)
 
  $ wget http://www.naoj.org/Observing/DataReduction/mtk/subaru_red/SPCAM/data/spcam_training_data.tar.gz
+   (file size : ~800MB)
  $ tar xvzf spcam_training_data.tar.gz
 
 4. Write nodefile
