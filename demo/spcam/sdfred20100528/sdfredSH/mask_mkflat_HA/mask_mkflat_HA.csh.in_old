@@ -1,0 +1,217 @@
+#! /bin/csh -f
+#------------------------------------------------------
+#This is a csh script for making flatfield images with masks
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               August 23, 1999
+#       Revised by Masami Ouchi
+#               March 23, 2000
+#       Revised by Masami Ouchi
+#               September 1, 2000
+#	Revised by Masami Ouchi
+#               April 21, 2002
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# mkflat.lis : list of sky, dome and twilight images 
+# wmediandiv2* : program for creating images divided by their median
+# uppercut* : program for masking pixels
+# mcomb2* : program for creating median-combined images 
+# sex* : SExtroctor
+# mask_mkflat.sex : configuration file for SExtractor
+# mask_mkflat.param : parameter file for SExtractor
+#
+
+#parameters
+
+set rejection_sigma = ''
+set number_of_rejection = ''
+
+#parameters for AG_X
+# j_limit, which defines the region to be masked
+#   A region with j>j_limit is masked.
+set j_limit_si006s = 3600
+set j_limit_w6c1   = 3600
+set j_limit_si002s = 3600
+set j_limit_w67c1  = 3800
+set j_limit_w7c3   = 3800
+
+
+#aquire a name of a list and a name of output image 
+
+if ( $#argv != 5 ) then
+    echo "Usage:" $0 " [mkflat.lis] [head name (mflat_chipname.fits is automatically appended)] [lower value masking a flat(0.5)] [uppwer value masking a flat(1.3)] [blank value(SPCAM=-32768)]" 
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "mkflat.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set flatlist = $1
+set head = $2
+set lower = $3
+set upper = $4
+set blank = $5
+
+
+#blank objects
+foreach image (`cat $flatlist`)
+    rm -f check_mask_mkflat.fits
+    sex ${image} -c /home/ouchi/bin/sdfred/spcamfirstSH/mask_mkflat_HA/mask_mkflat_HA.sex
+    rm -f tmp_hole.fits
+    uppercut -imin=-10 -imax=0.0 -pixignr=${blank} check_mask_mkflat.fits tmp_hole.fits
+    imarith ${image} - tmp_hole.fits h${image}
+
+end
+
+
+#blank the shadow of the AG probe
+
+foreach image (`cat $flatlist`)
+
+#if (0) then
+
+  #echo -n ${image} >! tmp_imAGX
+  #echo -n "  "   >> tmp_imAGX
+  echo -n h${image}" " > tmp_imAGX
+  getkey2.pl S_AG-X h${image} >> tmp_imAGX
+
+  set y_si006s = `(grep si006s tmp_imAGX | wc | gawk '{print $1}')`
+  set y_w6c1   = `(grep w6c1   tmp_imAGX | wc | gawk '{print $1}')`
+  set y_si002s = `(grep si002s tmp_imAGX | wc | gawk '{print $1}')`
+  set y_w67c1  = `(grep w67c1  tmp_imAGX | wc | gawk '{print $1}')`
+  set y_w7c3   = `(grep w7c3   tmp_imAGX | wc | gawk '{print $1}')`
+
+  set y_w93c2  = `(grep w93c2  tmp_imAGX | wc | gawk '{print $1}')`
+  set y_w9c2   = `(grep w9c2   tmp_imAGX | wc | gawk '{print $1}')`
+  set y_si005s = `(grep si005s tmp_imAGX | wc | gawk '{print $1}')`
+  set y_si001s = `(grep si001s tmp_imAGX | wc | gawk '{print $1}')`
+  set y_w4c5   = `(grep w4c5   tmp_imAGX | wc | gawk '{print $1}')`
+
+  cat tmp_imAGX
+  #more tmp_imAGX
+
+  if( $y_si006s != '0' ) then
+    set yn = `gawk '{if( $2 <= 105.0 ) {printf("%1d\n", 1 );}} {if( $2 > 105.0 ) {printf("%1d\n", 0 );}}' tmp_imAGX`
+    if( $yn == '0' ) then
+      echo "  AG-X is enough large; just copied."
+      cp h${image} ah${image}
+    endif
+    if( $yn == '1' ) then
+      echo "  AG-X is small; masked at j>" "$j_limit_si006s".
+      mask_for_AGX h${image}  ah${image}  ${j_limit_si006s}  ${blank}
+    endif
+  endif
+
+  if( $y_w6c1 != '0' ) then
+    set yn = `gawk '{if( $2 <= 105.0 ) {printf("%1d\n", 1 );}} {if( $2 > 105.0 ) {printf("%1d\n", 0 );}}' tmp_imAGX`
+    if( $yn == '0' ) then
+      echo "  AG-X is enough large; just copied."
+      cp h${image} ah${image}
+    endif
+    if( $yn == '1' ) then
+      echo "  AG-X is small; masked at j>" "$j_limit_w6c1".
+      mask_for_AGX h${image}  ah${image}  ${j_limit_w6c1}  ${blank}
+    endif
+  endif
+
+  if( $y_si002s != '0' ) then
+    set yn = `gawk '{if( $2 <= 105.0 ) {printf("%1d\n", 1 );}} {if( $2 > 105.0 ) {printf("%1d\n", 0 );}}' tmp_imAGX`
+    if( $yn == '0' ) then
+      echo "  AG-X is enough large; just copied."
+      cp h${image} ah${image}
+    endif
+    if( $yn == '1' ) then
+      echo "  AG-X is small; masked at j>" "$j_limit_si002s".
+      mask_for_AGX h${image}  ah${image}  ${j_limit_si002s}  ${blank}
+    endif
+  endif
+
+  if( $y_w67c1 != '0' ) then
+    set yn = `gawk '{if( $2 <= 105.0 ) {printf("%1d\n", 1 );}} {if( $2 > 105.0 ) {printf("%1d\n", 0 );}}' tmp_imAGX`
+    if( $yn == '0' ) then
+      echo "  AG-X is enough large; just copied."
+      cp h${image} ah${image}
+    endif
+    if( $yn == '1' ) then
+      echo "  AG-X is small; masked at j>" "$j_limit_w67c1".
+      mask_for_AGX h${image}  ah${image}  ${j_limit_w67c1}  ${blank}
+    endif
+  endif
+
+  if( $y_w7c3 != '0' ) then
+    set yn = `gawk '{if( $2 <= 105.0 ) {printf("%1d\n", 1 );}} {if( $2 > 105.0 ) {printf("%1d\n", 0 );}}' tmp_imAGX`
+    if( $yn == '0' ) then
+      echo "  AG-X is enough large; just copied."
+      cp h${image} ah${image}
+    endif
+    if( $yn == '1' ) then
+      echo "  AG-X is small; masked at j>" "$j_limit_w7c3".
+      mask_for_AGX h${image}  ah${image}  ${j_limit_w7c3}  ${blank}
+    endif
+  endif
+
+  if( $y_w93c2 != '0' || $y_w9c2 != '0' || $y_si005s != '0' || $y_si001s != '0' || $y_w4c5 != '0' ) then
+    echo "  Just copied."
+    cp h${image} ah${image}
+  endif
+
+#endif
+#cp h${image} ah${image}
+
+  rm h${image}
+end
+
+#-- end blank shadow
+
+
+
+set wmd_col1 = 6
+set wmd_col2 = 2009
+set wmd_row1 = 6
+set wmd_row2_upperCCD = 3500
+set wmd_row2_lowerCCD = 4085
+
+
+
+#make images divided by their median
+foreach image (`cat $flatlist`)
+    if (`echo ${image} | gawk '{if ($1~/si002s/ || $1~/si006s/ || $1~/w6c1/ || $1~/w67c1/ || $1~/w7c3/) {print 1} else {print 0}}'`) then
+
+	wmediandiv2 ah${image} ${wmd_col1} ${wmd_col2} ${wmd_row1} ${wmd_row2_upperCCD} nah${image}
+
+    else
+
+	wmediandiv2 ah${image} ${wmd_col1} ${wmd_col2} ${wmd_row1} ${wmd_row2_lowerCCD} nah${image}
+
+    endif
+
+    rm ah${image}
+
+end
+
+
+foreach image (`cat $flatlist`)
+    echo uppercut -imin=${lower} -imax=${upper} -pixignr=${blank} nah$image mnah$image
+    uppercut -imin=${lower} -imax=${upper} -pixignr=${blank} nah$image mnah$image
+    rm nah$image 
+end
+
+#make median flat images
+gawk '{print "mnah"$1}' $flatlist > tmp1
+foreach chip ( si001s si002s si005s si006s w67c1 w6c1 w93c2 w9c2 w4c5 w7c3 )
+    gawk '$1 ~/('$chip')+/ {print $0}' tmp1 > tmp2
+    mcomb2 tmp2 $head'_mflat_'$chip'.fits' $rejection_sigma $number_of_rejection
+end
+
+
+
+
+
+

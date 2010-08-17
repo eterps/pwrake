@@ -1,0 +1,59 @@
+#! /bin/csh -f
+#------------------------------------------------------
+#This is a csh script for making flatfield images 
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               August 23, 1999
+#       Revised by Masami Ouchi
+#               March 23, 2000
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# ffield_mf.lis : list of median flat images
+# ffield_im.lis : list of images which are flat-fielded 
+# imarith* : program for excuting 4 arithmetics 
+#
+
+#parameters
+
+#none
+
+#aquire names of lists
+
+if ( $#argv != 2 ) then
+    echo "Usage:" $0 " [ffield_mf.lis] [ffield_im.lis] " 
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "ffield.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+if ( !(-r $2) ) then
+    echo "ffield.csh: Cannot open "$2": No such file or directory"
+    exit 1
+endif
+
+set mflatlist = $1
+set ffieldlist = $2
+
+#
+
+#make median flat images
+
+foreach chip ( si001s si002s si005s si006s w67c1 w6c1 w93c2 w9c2 )
+    set flat = (`awk '$1 ~/('$chip')+/ {print $1}' $mflatlist | tail -1`)
+    echo "using " $flat "..."
+    awk '$1 ~/('$chip')+/ {print "imarith "$1" / '$flat' f"$1 }' $ffieldlist | csh -f
+end
+
+
+
+
+
+
+

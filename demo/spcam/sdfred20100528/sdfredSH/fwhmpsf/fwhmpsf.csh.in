@@ -1,0 +1,40 @@
+#! @CSHELL@ -f
+
+if ( $#argv != 6 ) then
+    echo "Usage:" $0 " [image name] [max number of objects(50)] [min peak flux(2000)] [max peak flux(30000)] [min FWHM(2.3)] [max FWHM(6.5)]" 
+    echo "Example:"
+    echo "fwhmpsf.csh test.fits 50 2000 30000 2.3 6.5"
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "fwhmpsf.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set image = $1
+set number_of_obj = $2
+set min_flux=$3
+set max_flux=$4
+set min_fwhm=$5
+set max_fwhm=$6
+
+set SDFREDSH = @SDFREDSH@
+set AWK = @AWK@
+
+sex ${image} -c $SDFREDSH/fwhmpsf/fwhmpsf.sex > /dev/null
+
+$AWK '{print $0}' fwhmpsf.cat | sort -k 7n > tmp1
+$AWK '$4>0 && $8>'${min_flux}' && $8<'${max_flux}' && $7>'${min_fwhm}' && $7<'${max_fwhm}' {print $0}' tmp1 | head -${number_of_obj} > fwhmpsfout.lis
+
+$AWK '{print $7}' fwhmpsfout.lis > tmp2
+set fwhmpsf = `mkhist tmp2 ${min_fwhm} ${max_fwhm} 0.1 | sort -k 2nr | head -1 | $AWK '{printf("%.2f\n",$1)}'`
+
+set upper_fwhmpsf = `echo ${fwhmpsf} | $AWK '{printf("%f\n",$1+0.2)}'`
+set lower_fwhmpsf = `echo ${fwhmpsf} | $AWK '{printf("%f\n",$1-0.2)}'`
+
+echo ${image} " " ${fwhmpsf} " " `mkhist tmp2 ${lower_fwhmpsf} ${upper_fwhmpsf} 0.1 | $AWK '{printf("%d ",$2)}'`
+
+#$AWK '{print "CIRCLE( "$2" "$3" 30)"}' fwhmpsfout.lis > ${output}
+
+

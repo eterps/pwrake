@@ -1,0 +1,111 @@
+#! @CSHELL@ -f
+#------------------------------------------------------
+#This is a csh script for measuring the detection limit
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               Oct   , 1999
+#       Revised by Masami Ouchi
+#               Feb 13, 2003
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# skysb.lis : list of images which are sky-subtracted
+# skysb3a* : program for subtracting sky value 
+#
+
+#aquire the name of the image and zero-pt etc.
+
+if ( $#argv != 7 ) then
+    echo "Usage:" $0 " [image] [Nrand(<1000000)] [ap_diameter(10)] [zmag(32.0)] [limit(5)] [phist_z1(-500)] [phist_z2(500)]" 
+    exit 1
+endif
+
+#check if login.cl exsits
+if ( !(-r login.cl) ) then
+    echo "limitmag.csh: Cannot find login.cl : limitmag.csh needs login.cl"
+    echo "execute mkiraf in this directory"
+    exit 1
+endif
+
+
+set image = $1
+set num_rand = $2
+set ap_diameter = $3
+set zmag = $4
+set limit = $5
+set phist_z1 = $6
+set phist_z2 = $7
+
+#
+set SDFREDSH = @SDFREDSH@
+set AWK = @AWK@
+
+set ap_radius = `echo ${ap_diameter} | $AWK '{print $1/2.}'`
+
+# version 1.2 getkey.pl => getkey
+set xpix = `getkey NAXIS1 ${image}`
+set ypix = `getkey NAXIS2 ${image}`
+
+#make the mask file
+sex ${image} -c $SDFREDSH/limitmag/limitmag.sex > /dev/null
+$AWK '$1!~/#/ {print "c "$2" "$3" "$6*2}' limitmag.cat > tmp_limitmag_mask
+
+#make the random file
+randomXY_mask tmp_limitmag_mask 0 ${xpix} 0 ${ypix} ${num_rand} > tmp_limitmag_rand
+
+#photometry
+
+rm -f tmp_limitmag_phot
+# version 1.2 \n added
+printf '\nnoao\n digiphot\n apphot\n phot '${image}' coords="tmp_limitmag_rand" output="tmp_limitmag_phot" int- verify- verbose- datamin=-10000 calgorithm="none" salgorithm="constant" skyvalue=0.0 sloclip=5. shiclip=5. sloreject=3. shireject=3 rgrow=5. weighting="constant" apertures='${ap_radius}' zmag='${zmag}' \nlogout\n' | cl
+
+rm -f tmp_limitmag_out
+# version 1.2 \n added
+printf '\nnoao\n digiphot\n ptools\n txdump tmp_limitmag_phot "FLUX" "PIER==0" head- > "tmp_limitmag_out" \n logout\n' | cl
+
+set num_goodap = `wc -l tmp_limitmag_out | $AWK '{print $1}'`
+echo "Number of good apertures = "${num_goodap}
+
+rm -f tmp_limitmag_outlis
+# version 1.2 \n added
+printf '\nphist "tmp_limitmag_out" z1='${phist_z1}' z2='${phist_z2}' nbins=50 listout+ > "tmp_limitmag_outlis" \n logout\n' | cl
+
+rm -f tmp_limitmag_fitres.tab
+# version 1.2 \n added
+printf '\nstsdas\n analysis\n fitting\n ngauss "tmp_limitmag_outlis" "tmp_limitmag_fitres.tab" function="Gaussians"  rt- ampl1=100. cent1=0. fwhm1=200 va- vb- vampl1+ vcent1+ vfwhm1+ low_rej=0 high_rej=0 niterat=3 int- verbose- \n logout\n' | cl
+
+
+rm -f tmp_limitmag_fwhm
+# version 1.2 \n added
+printf '\nstsdas\n tables\n tdump "tmp_limitmag_fitres.tab" cdfile="" columns="coeff5" > "tmp_limitmag_fwhm" \n logout\n' | cl
+
+set fwhm = `cat tmp_limitmag_fwhm`
+
+set sigma = `echo ${fwhm} | $AWK '{print $1/2.35482}'`
+set mag = `echo ${zmag} ${limit} ${sigma} | $AWK '{print $1-2.5*log($2*$3)/log(10)}'`
+
+echo ""
+echo ${ap_diameter} | $AWK '{printf("# aperture_diameter= %5.2f pixel\n",$1)}'
+echo ${zmag} ${limit} ${sigma} | $AWK '{printf("# 1sigma= %5.2f counts : %5.2f mag\n", $3, $1-2.5*log($3)/log(10) )}'
+echo ${zmag} ${limit} ${sigma} | $AWK '{printf("# %5.2f sigma= %5.2f counts : %5.2f mag\n", $2, $2*$3, $1-2.5*log($2*$3)/log(10) )}'
+
+echo ${image} ${mag} | $AWK '{printf("# %s %5.2f mag\n",$1,$2)}'
+
+
+
+#       phot ( image, coords=tmpfile3, output=tmpfile4, int-, \
+#                verify-, verbose-, \
+#                datamin=-10000, datamax=10000, \
+#                calgorithm="none",   \
+#               salgorithm="constant",skyvalue=0.,\
+#                sloclip=5.,shiclip=5.,sloreject=3.,shireject=3,rgrow=5.,\
+#                weighting="constant",apertures=ap_radius,zmag=zmag )
+
+#txdump ( tmpfile4, "FLUX", "PIER==0", head-, > tmpfile5 )
+
+## version 1.2 \n added
+#printf '\nstsdas\n ana\n fit\n nfit1d fit_lumifun_BRi fit.tab function="user" userpars.func="0.92*c1*exp(-0.92*(c3+1)*(x-c2)-exp(-0.92*(x-c2)))" userpars.c1=0.001 userpars.c2=-20 userpars.c3=-1.6 userpars.v1+ userpars.v2+ userpars.v3+ int- \nlogout\n' | cl

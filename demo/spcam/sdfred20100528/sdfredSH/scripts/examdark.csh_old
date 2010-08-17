@@ -1,0 +1,48 @@
+#! /bin/csh -f
+#sh script for examining a detector temperature
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               Feb 6, 2000
+#       Revised by Masami Ouchi
+#               March 23, 2000
+#
+#------------------------------------------------------
+#notes for csh programing : $#argv -> number of argment
+#                           $0,$1,$2 -> name of script,first arg,second arg 
+
+
+#
+# necessary files & programs
+# *.lis : list of examined images
+# getheader* : program for reading header value
+#
+
+#parameters
+
+#none
+
+#
+if ( $#argv != 1 ) then
+    echo "Usage:" $0 " [listname] " 
+    exit 1
+endif
+
+if ( -r $1 ) then
+    foreach image (`cat $1`)
+	echo -n $image ': DET-TMP = '
+	getheader DET-TMP $image
+    end
+else
+    echo "examdark.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,313 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+
+/* ... local include files ... */
+#include "imc.h"
+
+int imc_rotate_WCS(struct icom *icom, 
+	       float dx, float dy, double cos_rot, double sin_rot)
+{
+
+  float crpix1,crpix2;
+  float cd11,cd12,cd21,cd22;
+  /* 2002/06/05 */
+  float pc11,pc12,pc21,pc22;
+
+  if (imget_fits_float_value(icom,"CRPIX1",&crpix1)==1 &&
+      imget_fits_float_value(icom,"CRPIX2",&crpix2)==1)
+    {
+      imupdate_fitsf(icom, "CRPIX1", "%20.1f / %-47.47s",
+		     crpix1*cos_rot-crpix2*sin_rot+dx,"");
+      imupdate_fitsf(icom, "CRPIX2", "%20.1f / %-47.47s",
+		     crpix1*sin_rot+crpix2*cos_rot+dy,"");
+
+      /* At least, CRPIX exists */
+
+      if ((imget_fits_float_value(icom,"CD1_1",&cd11)+
+	   imget_fits_float_value(icom,"CD1_2",&cd12)+
+	   imget_fits_float_value(icom,"CD2_1",&cd21)+
+	   imget_fits_float_value(icom,"CD2_2",&cd22))!=0)
+	{
+	  /* CD matrix exists */
+	  /* rotation direction SHOULD BE CHECKED LATER!! */
+	  imupdate_fitsf(icom, "CD1_1", "%20.8f / %-47.47s",
+			 (cd11*cos_rot-cd21*sin_rot),"");
+	  imupdate_fitsf(icom, "CD1_2", "%20.8f / %-47.47s",
+			 (cd12*cos_rot-cd22*sin_rot),"");
+	  imupdate_fitsf(icom, "CD2_1", "%20.8f / %-47.47s",
+			 (cd11*sin_rot+cd21*cos_rot),"");
+	  imupdate_fitsf(icom, "CD2_2", "%20.8f / %-47.47s",
+			 (cd12*sin_rot+cd22*cos_rot),"");
+	}
+
+      if(imget_fits_float_value(icom,"PC001001",&pc11)==1 &&
+	 imget_fits_float_value(icom,"PC001002",&pc12)==1 &&
+	 imget_fits_float_value(icom,"PC002001",&pc21)==1 &&
+	 imget_fits_float_value(icom,"PC002002",&pc22)==1)
+	{
+	  /* CD matrix exists */
+	  /* rotation direction SHOULD BE CHECKED LATER!! */
+	  imupdate_fitsf(icom, "PC001001", "%20.8f / %-47.47s",
+			 (pc11*cos_rot+pc21*sin_rot),"");
+	  imupdate_fitsf(icom, "PC001002", "%20.8f / %-47.47s",
+			 (pc12*cos_rot+pc22*sin_rot),"");
+	  imupdate_fitsf(icom, "PC002001", "%20.8f / %-47.47s",
+			 (-pc11*sin_rot+pc21*cos_rot),"");
+	  imupdate_fitsf(icom, "PC002002", "%20.8f / %-47.47s",
+			 (-pc12*sin_rot+pc22*cos_rot),"");
+	}
+      
+      
+      
+      imaddhistf(icom,"WCS is rotated sin=%f cos=%f",
+		 sin_rot, cos_rot);
+      
+      return 1;
+    } 
+  return 0;
+}
+
+int imc_scale_WCS2(struct icom *icom, 
+		  float scalex,
+		   float scaley)
+{
+  float crpix1,crpix2;
+  float cdelt1,cdelt2;
+  float cd11,cd12,cd21,cd22;
+
+  if (scalex<=0||scaley<=0) return 0;
+
+  if (imget_fits_float_value(icom,"CRPIX1",&crpix1)==1 &&
+      imget_fits_float_value(icom,"CRPIX2",&crpix2)==1)
+    {
+      imupdate_fitsf(icom, "CRPIX1", "%20.8f / %-47.47s",
+		     crpix1*scalex,"");
+      imupdate_fitsf(icom, "CRPIX2", "%20.8f / %-47.47s",
+		     crpix2*scaley,"");
+      if(imget_fits_float_value(icom,"CDELT1",&cdelt1)==1 &&
+	 imget_fits_float_value(icom,"CDELT2",&cdelt2)==1)
+	{
+	  imupdate_fitsf(icom, "CDELT1", "%20.8f / %-47.47s",
+			 cdelt1/scalex,"");
+	  imupdate_fitsf(icom, "CDELT2", "%20.8f / %-47.47s",
+			 cdelt2/scaley,"");
+	}
+
+      if ((imget_fits_float_value(icom,"CD1_1",&cd11)+
+	   imget_fits_float_value(icom,"CD1_2",&cd12)+
+	   imget_fits_float_value(icom,"CD2_1",&cd21)+
+	   imget_fits_float_value(icom,"CD2_2",&cd22))!=0)
+	{
+	  /* CD matrix exists */
+	  imupdate_fitsf(icom, "CD1_1", "%20.8f / %-47.47s",
+			 cd11/scalex,"");
+	  imupdate_fitsf(icom, "CD1_2", "%20.8f / %-47.47s",
+			 cd12/scaley,"");
+	  imupdate_fitsf(icom, "CD2_1", "%20.8f / %-47.47s",
+			 cd21/scalex,"");
+	  imupdate_fitsf(icom, "CD2_2", "%20.8f / %-47.47s",
+			 cd22/scaley,"");
+
+	  /* 2002/07/20 */
+	  /* TO BE USED, someday */
+	  /*
+	    cdelt1=sqrt(cd11*cd11+cd12*cd12);
+	    cdelt2=sqrt(cd21*cd21+cd22*cd22);
+	    if(cd11*cd22-cd12*cd21<0) cdelt1=-cdelt1;
+	    imupdate_fitsf(icom, "CDELT1", "%20.8f / %-47.47s",
+	    cdelt1/scale,"");
+	    imupdate_fitsf(icom, "CDELT2", "%20.8f / %-47.47s",
+	    cdelt2/scale,"");
+	  */
+	}
+
+      imaddhistf(icom,"WCS is scaled by %f x %f",scalex,scaley);
+
+      return 1;
+      
+    }
+  return 0;
+}
+
+int imc_scale_WCS(struct icom *icom, 
+		  float scale)
+{
+  return imc_scale_WCS2(icom,scale,scale);
+}
+
+
+int imc_shift_WCS(struct icom *icom,float dx,float dy)
+{
+  float crpix1,crpix2;  
+  if (imget_fits_float_value(icom,"CRPIX1",&crpix1)==1 &&
+      imget_fits_float_value(icom,"CRPIX2",&crpix2)==1)
+    {
+      imupdate_fitsf(icom, "CRPIX1",
+		    "%20.1f / %-47.47s",
+		    crpix1-dx,
+		    "Reference pixel coordinate system in axis1");
+      imupdate_fitsf(icom, "CRPIX2",
+		    "%20.1f / %-47.47s",
+		    crpix2-dy,
+		    "Reference pixel coordinate system in axis2");
+
+      imaddhistf(icom,"WCS is shifted by %f,%f",dx,dy);
+
+      return 1;
+    }
+  else
+    return 0;
+}
+
+
+/* PC matrix is not supported now (2002/05/07) */
+int imc_getWCS(struct icom *icom, 
+	       char *crval1,
+	       char *crval2,
+	       char *equinox,
+	       char *cdelt1,
+	       char *cdelt2,
+	       char *longpole,
+	       char *ctype1,
+	       char *ctype2,
+	       char *cunit1,
+	       char *cunit2,
+	       char *crpix1,
+	       char *crpix2,
+	       char *cd11,
+	       char *cd12,
+	       char *cd21,
+	       char *cd22)
+{
+  float pc11=0,pc12=0,pc21=0,pc22=0;
+  if(imget_fits_value(icom,"CRVAL1",crval1)==1 &&
+     imget_fits_value(icom,"CRVAL2",crval2)==1 &&
+     imget_fits_value(icom,"EQUINOX",equinox)==1 &&
+     imget_fits_value(icom,"CTYPE1",ctype1)==1 &&
+     imget_fits_value(icom,"CTYPE2",ctype2)==1 &&
+     imget_fits_value(icom,"CRPIX1",crpix1)==1 &&
+     imget_fits_value(icom,"CRPIX2",crpix2)==1)
+    {
+      imget_fits_value(icom,"CUNIT1",cunit1);
+      imget_fits_value(icom,"CUNIT2",cunit2);
+
+      /* LONGPOLE => LONPOLE */
+      if (imget_fits_value(icom,"LONPOLE",longpole)!=1 ||
+	  imget_fits_value(icom,"LONGPOLE",longpole)!=1)
+	strcpy(longpole,"180.0");
+
+      /* 2002/06/05 */
+      /* 2003/04/24 */
+      if ((imget_fits_value(icom,"CD1_1",cd11)+
+	   imget_fits_value(icom,"CD1_2",cd12)+
+	   imget_fits_value(icom,"CD2_1",cd21)+
+	   imget_fits_value(icom,"CD2_2",cd22))!=0)
+	{
+	  return 1;
+	}
+      else 
+	if(
+	   imget_fits_value(icom,"CDELT1",cdelt1)==1 &&
+	   imget_fits_value(icom,"CDELT2",cdelt2)==1 &&
+	   imget_fits_float_value(icom,"PC001001",&pc11)==1 &&
+	   imget_fits_float_value(icom,"PC001002",&pc12)==1 &&
+	   imget_fits_float_value(icom,"PC002001",&pc21)==1 &&
+	   imget_fits_float_value(icom,"PC002002",&pc22)==1)
+	  {
+	    /* need check => OK(2004/01/25)*/
+	    sprintf(cd11,"%f",pc11*atof(cdelt1));
+	    sprintf(cd12,"%f",pc12*atof(cdelt1));
+	    sprintf(cd21,"%f",pc21*atof(cdelt2));
+	    sprintf(cd22,"%f",pc22*atof(cdelt2));
+
+	    return 1;
+	  }
+      else
+	return 0;
+    }
+  else 
+    return 0;
+}
+
+
+/* PC matrix is not supported now (2002/05/07) */
+int imc_checkWCS(struct icom *icom)
+{
+  char tmp[BUFSIZ];
+  return imc_getWCS(icom, tmp,tmp,tmp,tmp,tmp,
+		    tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp);
+}
+
+/* PC matrix is not supported now (2002/05/07) */
+int imc_copyWCS(struct icom *icomin, struct icom *icomout)
+{
+  char 
+    crval1[80],
+    crval2[80],
+    crpix1[80],
+    crpix2[80],
+    cdelt1[80],
+    cdelt2[80],
+    equinox[80],
+    longpole[80],
+    ctype1[80]="RA---TAN",
+    ctype2[80]="DEC--TAN",
+    cunit1[80]="degree",
+    cunit2[80]="degree",
+    cd11[80],
+    cd12[80],
+    cd21[80],
+    cd22[80];
+
+  if(imc_getWCS(icomin, crval1, crval2, equinox, cdelt1, cdelt2,
+		longpole, ctype1, ctype2, cunit1, cunit2, crpix1, 
+		crpix2, cd11, cd12, cd21, cd22)==1)
+    {
+      imupdate_fitsf(icomout, "CRVAL1", "%20.8f / %-47.47s",
+		     atof(crval1),"");
+      imupdate_fitsf(icomout, "CRVAL2", "%20.8f / %-47.47s",
+		     atof(crval2),"");
+      imupdate_fitsf(icomout, "EQUINOX", "%20.1f / %-47.47s",
+		     atof(equinox),"");
+      if (imrep_fitsf(icomout, "LONGPOLE", "LONPOLE = %20.1f /",
+		      atof(longpole))==0)
+	{
+	  imupdate_fitsf(icomout, "LONPOLE", "%20.1f / %-47.47s",
+			 atof(longpole),"");
+	}
+      if(atof(cdelt1)!=0)
+	imupdate_fitsf(icomout, "CDELT1", "%20.8f / %-47.47s",
+		       atof(cdelt1),"");
+      if(atof(cdelt2)!=0)
+	imupdate_fitsf(icomout, "CDELT2", "%20.8f / %-47.47s",
+		       atof(cdelt2),"");
+
+      printf("debug:ctype1 %s\n",ctype1);
+      printf("debug:cunit1 %s\n",cunit1);
+
+      /* force to fix the WCS type to TAN (2010/5/24 Nakata)
+      imupdate_fitsf(icomout, "CTYPE1", "\'%-8s\'",ctype1);
+      imupdate_fitsf(icomout, "CTYPE2", "\'%-8s\'",ctype2);
+      */
+      imupdate_fitsf(icomout, "CTYPE1", "RA---TAN");
+      imupdate_fitsf(icomout, "CTYPE2", "DEC--TAN");
+      imupdate_fitsf(icomout, "CUNIT1", "\'%-8s\'",cunit1);
+      imupdate_fitsf(icomout, "CUNIT2", "\'%-8s\'",cunit2);
+      imupdate_fitsf(icomout, "CD1_1", "%20.8f / %-47.47s",
+		     (atof(cd11)),"");
+      imupdate_fitsf(icomout, "CD1_2", "%20.8f / %-47.47s",
+		     (atof(cd12)),"");
+      imupdate_fitsf(icomout, "CD2_1", "%20.8f / %-47.47s",
+		     (atof(cd21)),"");
+      imupdate_fitsf(icomout, "CD2_2", "%20.8f / %-47.47s",
+		     (atof(cd22)),"");
+      imupdate_fitsf(icomout, "CRPIX1", "%20.1f / %-47.47s",
+		     (atof(crpix1)),"");
+      imupdate_fitsf(icomout, "CRPIX2", "%20.1f / %-47.47s",
+		     (atof(crpix2)),"");
+      return 1;
+    }
+  else return 0;
+}

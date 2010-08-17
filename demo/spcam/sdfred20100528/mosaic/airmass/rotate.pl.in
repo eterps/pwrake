@@ -1,0 +1,31 @@
+#! @PERLPATH@
+
+$PI=3.14159265358979;
+
+if (@ARGV<1)
+{
+    print "Usage\: rotate.pl FITS [dtheta]\n";
+    exit(-1);
+}
+
+if (@ARGV==1) 
+{
+    $t=0;
+}
+else
+{
+    $t=$ARGV[1];
+}
+
+$ct=cos($t);
+$st=sin($t);
+
+$b11=$ct;
+$b12=-$st;
+$b21=$st;
+$b22=$ct;
+
+# printf("%f %f\n",$a,$b);
+# printf("det=%f\n",$b11*$b22-$b12*$b21);
+printf("-b11=%g -b12=%g -b21=%g -b22=%g\n",
+       $b11,$b12,$b21,$b22);

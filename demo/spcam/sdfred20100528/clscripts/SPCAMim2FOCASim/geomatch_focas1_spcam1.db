@@ -1,0 +1,29 @@
+# Thu 21:54:11 29-May-2003
+begin	geomatch_focas1_spcam1.pos
+	xrefmean	2055.144
+	yrefmean	1748.365
+	xmean		1015.897
+	ymean		925.5857
+	geometry	rscale
+	function	polynomial
+	xshift		2072.839
+	yshift		27.86985
+	xmag		0.51393
+	ymag		0.51393
+	xrotation	179.9464
+	yrotation	359.9464
+	xrms		0.3550203
+	yrms		0.3248127
+	surface1	11
+			3.	3.
+			2.	2.
+			2.	2.
+			0.	0.
+			1.	1.
+			4029.	4029.
+			1.	1.
+			4095.	4095.
+			2072.839	27.86985
+			-0.5139297	-4.804415E-4
+			-4.804415E-4	0.5139297
+	surface2	0

@@ -1,0 +1,107 @@
+#! /bin/csh -f
+#------------------------------------------------------
+#This is a csh script for measuring the psfs of images 
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               September 2, 2000
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# psfmeasure.lis : list of images to be psf-matched
+# skysb2* : program for sbtracting the sky of images
+# starsel* : program for selecting stars in a image
+# psfmake* : program for making a psf of an image
+# dgauss2* : program for measuring a gaussian sigma of an imput psf image
+#
+
+#parameters
+
+# psfout : name of an output psf list 
+# blankvalue : value of pixels to be masked
+
+#aquire names of lists
+
+if ( $#argv != 3 ) then
+    echo "Usage:" $0 " [psfmeasure.lis] [header name of output psf list (psf)] [blank value(SPCAM=-32768)]" 
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "psfmeasure.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set psfmeasurelist = $1
+set psfout = $2
+set blankvalue = $3
+
+#making new directories
+
+rm -r ./${psfout}
+mkdir ./${psfout}
+
+#measure PSFs of images
+
+rm tmp1
+rm ${psfout}.lis
+foreach image (`cat $psfmeasurelist`)
+    
+    echo subtracting the sky of an image ...
+    echo skysb2 -mesh=1000,1000 -pixignr=${blankvalue} ${image} s${image}
+    skysb2 -mesh=1000,1000 -pixignr=${blankvalue} ${image} s${image}
+
+    echo selecting PSFs of stars ... 
+    mkdir ./${psfout}/`basename psf_${image} .fits`.dir
+    starsel -nskysigma=10 -npix=20 -peakmin=1000 \
+	-peakmax=15000 -aratiomin=0.4 \
+	-basename=./${psfout}/`basename psf_${image} .fits`.dir/psf_ s${image}
+    ls -1 ./${psfout}/`basename psf_${image} .fits`.dir/psf_*.fits > tmp_psf.lis
+
+#for case 1---
+    echo measuring sigma of PSFs
+
+    set outlis = ./${psfout}/`basename psf_${image} .fits`.lis
+    echo use G1 from dgauss
+    foreach psf (`cat tmp_psf.lis`)
+	dgauss2 -fit ${psf} | gawk '{print $3}' | gawk '$1!="" {print $1}' >> \
+	    ${outlis}
+    end
+    #median
+    sort -n ${outlis} | \
+        head -`wc -l ${outlis} | gawk '{printf("%d\n",($1-1)/2.0) }'` | \
+	tail -1 >> tmp1
+        #tail -1 >> ${psfout}.lis
+
+    #best
+    #sort -n ${outlis} | \
+    #    head -1 >> tmp1
+
+
+##for case 2    
+#    echo making a PSF of an image ...
+#    set gain = `getkey2.pl GAIN s${image}`
+#
+#    psfmake -skysigma=10 -gain=${gain} tmp_psf.lis ./${psfout}/psf_${image}
+#
+#    echo measureing a sigma of the PSF of the image ...
+#
+#    echo use Sigma1 from dgauss
+#    set sigma = `dgauss2 -fit ./${psfout}/psf_${image} | gawk '{print $6}' `
+#
+#    echo ${image} $sigma >> ${psfout}.lis
+
+
+rm s${image}
+
+end
+
+paste ${psfmeasurelist} tmp1 > ${psfout}.lis
+
+
+
+
+

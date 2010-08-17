@@ -1,0 +1,140 @@
+procedure limitmag ( image, nrand, ap_diameter, zmag, limit, phist_z1, phist_z2 ) 
+
+	string image 	{"", prompt="image name"}
+	int   nrand  { 10000, prompt="num. of random apertures (<1000000)"}
+	real ap_diameter  { 10. , prompt="aperture diameter in pix"}
+	real zmag	{ 32.24 , prompt="zero point of an input image"}
+	real limit    { 5. , prompt="limiting sigma"}
+	real phist_z1	{-500. , prompt="histogram lower limit"}
+	real phist_z2	{ 500. , prompt="histgram upper limit"}	
+
+#
+#string image 	{prompt="Divided image-node name"} 
+#string img_denominator	{prompt="Dividing image-node name"}
+#struct *list1		{"chip.lis", prompt="chip name file"}
+#
+#begin
+
+#noao
+#digiphot
+#apphot
+
+#stsdas
+#analysis
+#fitting
+
+begin
+
+	string tmpfile1, tmpfile2, tmpfile3
+	string tmpfile4, tmpfile5, tmpfile6
+	string tmpfile7
+	int xmax,ymax	
+	real epadu
+	real ap_radius
+	real inner_annulus, width_annulus
+	real fwhm,sigma
+	real mag
+
+	int nrand_pick
+
+	int dummy1, dummy2
+	string dummy3
+
+	#width_annulus=10.
+
+	ap_radius=ap_diameter/2.
+
+	#inner_annulus=ap_radius
+
+	#hselect ( image, fields="NAXIS1,NAXIS2,GAIN", expr+) \
+	#	| scanf ("%d %d %f",xmax,ymax,epadu)
+
+	hselect ( image, fields="NAXIS1,NAXIS2", expr+) \
+		| scanf ("%d %d %f",xmax,ymax)
+
+	
+	#make the mask file
+	del tmp_limitmag_sexcom
+	print ( image//" -c @SDFREDCL@/limitmag/limitmag.sex", > "tmp_limitmag_sexcom" )
+
+	!sex `cat tmp_limitmag_sexcom`
+	!@AWK@ '{print "c "$2" "$3" "$6*2}' limitmag.cat > tmp_limitmag_mask
+
+	#make the random file
+	del tmp_limitmag_randcom
+	print ( "tmp_limitmag_mask 0 "//xmax//" 0 "//ymax//" "//nrand, > "tmp_limitmag_randcom" )
+	#randomXY_mask tmp_limitmag_mask 0 ${xpix} 0 ${ypix} ${num_rand} > tmp_limitmag_rand
+	!randomXY_mask `cat tmp_limitmag_randcom` > tmp_limitmag_rand
+
+
+	#print ("1.234 5 7.34abc") | scanf ("%g %d %f %s", x, i, y, s1)
+	#nrand=xmax*ymax/ratio	
+
+	del "/tmp/tmp*"
+	tmpfile1 = mktemp ("tmp$tmp")
+	tmpfile2 = mktemp ("tmp$tmp")
+	tmpfile3 = mktemp ("tmp$tmp")
+	tmpfile4 = mktemp ("tmp$tmp")
+	tmpfile5 = mktemp ("tmp$tmp")
+	tmpfile6 = mktemp ("tmp$tmp")
+	tmpfile7 = mktemp ("tmp$tmp")
+
+	#urand ( nrand , 1 , seed=INDEF, scale_factor=xmax, > tmpfile1 )
+	#sleep ( 1 )
+	#urand ( nrand , 1 , seed=INDEF, scale_factor=ymax, > tmpfile2 )
+	#joinlines ( tmpfile1 , tmpfile2 , > tmpfile3 )
+
+	#type ( tmpfile3 ) | graph po+
+	type ( "tmp_limitmag_rand" ) | graph po+
+
+	#!head -1 tmp_limitmag_rand > tmp_limitmag_rand_1line
+	#!catmask.csh tmp_limitmag_mask tmp_limitmag_rand_1line 1 2
+	#del limitmag_mask.dso
+	#!mv tmp_limitmag_mask.dso limitmag_mask.dso
+	#printf("mask file is created, limitmag_mask.dso\n")
+
+	!@AWK@ '{print "CIRCLE(" $1" "$2" 10)"}' tmp_limitmag_rand > limitmag_rand.dso
+	printf("random object dso is created, limitmag_rand.dso\n")
+
+
+
+	phot ( image, coords="tmp_limitmag_rand", output=tmpfile4, int-, \
+		verify-, verbose-, \
+		datamin=-10000, datamax=10000, \
+		calgorithm="none",   \
+	       salgorithm="constant",skyvalue=0.,\
+		sloclip=5.,shiclip=5.,sloreject=3.,shireject=3,rgrow=5.,\
+		weighting="constant",apertures=ap_radius,zmag=zmag )
+
+	del ( "tmp" )
+	type ( tmpfile4, > "tmp" )
+
+	txdump ( tmpfile4, "FLUX", "PIER==0", head-, > tmpfile5 )
+
+	count ( tmpfile5 ) | scanf("%d %d %d %s",nrand_pick, dummy1, dummy2, dummy3)
+	printf("Number of good apertures = %d\n",nrand_pick)
+		
+	phist ( tmpfile5, z1=phist_z1,z2=phist_z2,nbins=50,listout+, > tmpfile6 )
+
+	printf("ngaussfit is excuted, fit by (f) then exit by (q) in graph corsour\n")
+
+	ngauss ( tmpfile6, tmpfile7, function="Gaussians", rt-,\
+		ampl1=100.,cent1=0.,fwhm1=200,\
+		va-,vb-,vampl1+,vcent1+,vfwhm1+,\
+		low_rej=0 ,high_rej=0 ,niterat=3,\
+		int+, verbose- )
+
+	tdump ( tmpfile7, cdfile="",columns="coeff5" ) | scanf("%f",fwhm)
+	sigma = fwhm/2.35482
+	
+	mag = zmag-2.5*log10(limit*sigma)
+
+	printf("aperture_diameter= %5.2f pixel\n",ap_diameter)
+	printf("1sigma= %5.2f counts : %5.2f mag\n",sigma,(zmag-2.5*log10(sigma)) )
+	printf("%5.2f sigma= %5.2f counts : %5.2f mag\n",limit, limit*sigma, (zmag-2.5*log10(limit*sigma)) )
+
+	printf("%s %5.2f mag\n",image, (zmag-2.5*log10(limit*sigma)))
+
+
+end
+

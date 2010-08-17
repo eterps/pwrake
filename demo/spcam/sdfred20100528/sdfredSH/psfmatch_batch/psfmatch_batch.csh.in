@@ -1,0 +1,97 @@
+#! @CSHELL@ -f
+#------------------------------------------------------
+#This is a csh script for smoothing images to a given PSF
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               April 23, 2002
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# psfmatch_batch.lis : list of images to be measured
+# @AWK@ : GNU awk
+# psfmatch.csh : program for measuring FWHM(PSF) for an image
+#
+
+#parameters
+
+#aquire names of the list and parameters
+
+if ( $#argv != 7 ) then
+    echo "Usage:" $0 " [psfmatch_batch.lis] [max number of objects(50)] [min peak flux(2000)] [max peak flux(30000)] [min FWHM(2.3)] [max FWHM(6.5)] [target FWHM(4.5)]" 
+    echo "Example:"
+    echo "psfmatch_batch.csh psfmatch_batch.lis 50 2000 30000 2.3 6.5 4.5"
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "psfmatch_batch.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set psfmatch_batchlist = $1
+set P_number_of_obj = $2
+set P_min_flux = $3
+set P_max_flux = $4
+set P_min_fwhm = $5
+set P_max_fwhm = $6
+set P_target_fwhm = $7
+
+set SDFREDSH = @SDFREDSH@
+set AWK = @AWK@
+
+rm -f tmp_psfmatch_batch0
+
+
+
+# version 1.2 
+## foreach image (`cat $psfmatch_batchlist`)
+set list = $psfmatch_batchlist
+set nmax = `wc -l $list | awk '{print $1}'`
+@ n = 1
+while ( $n <= $nmax )
+set image = `sed -n "$n"p $psfmatch_batchlist`
+
+    #echo psfmatch.csh ${image} ${P_number_of_obj} ${P_min_flux} ${P_max_flux} ${P_min_fwhm} ${P_max_fwhm}
+    psfmatch.csh ${image} ${P_number_of_obj} ${P_min_flux} ${P_max_flux} ${P_min_fwhm} ${P_max_fwhm} p${image} ${P_target_fwhm} >> tmp_psfmatch_batch0
+
+# version 1.2 
+@ n++
+end
+
+$AWK '$1~/pg/ {print $0}' tmp_psfmatch_batch0 > tmp_psfmatch_batch1
+
+echo ""
+echo ""
+echo "### results (after psfmatch) ###"
+echo ""
+
+cat tmp_psfmatch_batch1
+
+echo "###"
+
+#make a histogram
+$AWK '$2!="" {print $2}' tmp_psfmatch_batch1 >  tmp_psfmatch_batch2
+set hist_min = `sort -n tmp_psfmatch_batch2 | head -1`
+set hist_max = `sort -n tmp_psfmatch_batch2 | tail -1`
+mkhist tmp_psfmatch_batch2 ${hist_min} ${hist_max} 0.1 | $AWK '{printf("%.1f %s\n",$1,$2)}' > tmp_psfmatch_batch3
+
+echo ""
+echo "PSF | number of images"
+foreach psf (`$AWK '{print $1}' tmp_psfmatch_batch3`)
+    echo -n ${psf}" |"
+    set num = `$AWK '$1=='${psf}' {print $2}' tmp_psfmatch_batch3`
+    set i = 0
+    while (`echo ${i} ${num} | $AWK '{if ($1<$2) {print 1} else {print 0}}'`)
+	echo -n "*"
+	set i = `echo ${i} | $AWK '{print $1+1}'`
+    end
+
+    echo ""
+
+end
+
+echo ""

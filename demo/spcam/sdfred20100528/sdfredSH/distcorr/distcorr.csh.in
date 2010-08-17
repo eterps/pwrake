@@ -1,0 +1,60 @@
+#! @CSHELL@ -f
+#------------------------------------------------------
+#This is a csh script for correcting the distortion of images 
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               September 2, 2000
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# distcorr.lis : list of images to be distortion-corrected
+# @AWK@ : GNU awk
+# getkey : getting header keywords
+# distcorr5.sh* : program for correcting the distortion & differential atomospheric effects of images  
+#
+
+#parameters
+
+set AWK = @AWK@
+
+#aquire names of lists
+
+if ( $#argv != 1 ) then
+    echo "Usage:" $0 " [distcorr.lis]" 
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "distcorr.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set distcorrlist = $1
+
+# version 1.2 
+## foreach image (`cat $distcorrlist`)
+set list = $distcorrlist
+set nmax = `wc -l $list | awk '{print $1}'`
+@ n = 1
+while ( $n <= $nmax )
+set image = `sed -n "$n"p $list`
+
+# Version 1.2
+## YAGI changed from getkey2.pl => getkey
+    set x = `getkey CRPIX1 $image | $AWK '{print -$1}'`
+    set y = `getkey CRPIX2 $image | $AWK '{print -$1}'`
+    #echo distcorr3 -x=${x} -y=${y} -quickmode ${image} g${image} 
+    #distcorr3 -x=${x} -y=${y} -quickmode ${image} g${image} 
+    #echo distcorr3a.sh ${image} g${image}
+    #distcorr3a.sh ${image} g${image}
+    echo distcorr5.sh ${image} g${image}
+    distcorr5.sh ${image} g${image}
+
+# version 1.2 (I dislike csh...YAGI)
+@ n ++
+end
+

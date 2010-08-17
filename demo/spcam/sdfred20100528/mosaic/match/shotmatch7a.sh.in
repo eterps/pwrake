@@ -1,0 +1,104 @@
+#! @SHELL@
+
+AWK=@AWK@
+
+### change as you like
+MESEXT=".mes"
+MESSELEXT=".messel"
+## OUTMOS="tmp`date +%Y%m%d%H%M%S`.mos"
+OUTMOS=out.mos
+MATRIX=matrix.dat
+
+MATCHSINGLE=match_single5
+MATCHSTACK=match_stack5
+
+### change the name conversion func as you like
+orgfilename () {
+echo $1 | sed 's/'$MESEXT'//' 
+exit 0
+}
+
+n=`echo 0 | $AWK '{print cos($1)}'`
+if [ "$n" = "0" ] 
+then
+echo 'Error: You need nawk or gawk for this shell.'
+exit 1
+fi
+
+if [ $# -lt 3 ]
+then
+echo 'Usage: shotmatch7.sh nmax a.fits'$MESEXT' b.fits'$MESEXT' ...'
+echo '       a.fits'$MESEXT' should be ID x y flux ... format'
+exit 1
+fi
+
+# parse options
+
+nmin=4 # for Suprime
+
+nmax=`expr $1`
+if [ $nmax -lt $nmin ]
+then
+echo nmax="$nmax" is too small
+exit 1
+fi
+
+shift 
+files=$*
+## echo $files
+
+if [ -z "$files" ]
+then
+echo no catalogs
+exit 1
+fi
+
+rm -f $MATRIX
+
+for a in $files
+do
+A="`orgfilename $a`"
+
+for b in $files
+do
+
+B="`orgfilename $b`"
+if [ \( -f "$A" \) -a \( -f "$B" \) -a  "$A" != "$B" ]
+then
+if overlap2 $A $B
+then
+##
+#select B
+estmatch $A $B > est.tmp
+read x y r f < est.tmp
+cat $b | $AWK -v t=$r -v x0=$x -v y0=$y -v X=`getkey NAXIS1 $A` -v Y=`getkey NAXIS2 $A` 'BEGIN{s=sin(t);c=cos(t)}{x=c*$2-s*$3+x0;y=s*$2+c*$3+y0;if(0<x&&x<X&&0<y&&y<Y)print}' > $B$MESSELEXT
+
+#select A
+estmatch $B $A > est2.tmp
+read x y r f < est2.tmp
+cat $a | $AWK -v t=$r -v x0=$x -v y0=$y -v X=`getkey NAXIS1 $B` -v Y=`getkey NAXIS2 $B` 'BEGIN {s=sin(t);c=cos(t)}{x=c*$2-s*$3+x0;y=s*$2+c*$3+y0;if(0<x&&x<X&&0<y&&y<Y)print}' > $A$MESSELEXT
+
+$MATCHSINGLE -nmax=$nmax -nmin=$nmin $A$MESSELEXT $B$MESSELEXT >> $MATRIX
+echo '#' `tail -1 $MATRIX`
+fi
+fi
+done
+done
+echo
+echo
+
+if [ ! -f $MATRIX ]
+then
+echo 'Error: No appropriate files are specified.'
+echo '       Check if *.fits exist corresponding to *.fits.mes'
+else 
+$MATCHSTACK $MATRIX | sort | sed 's/'$MESSELEXT'//' > $OUTMOS
+a=`head -1 $OUTMOS | wc -w`
+if [ $a -ne 5 ]
+then
+echo FAILED.
+echo
+cat $OUTMOS
+mv $OUTMOS $OUTMOS.error
+fi
+fi

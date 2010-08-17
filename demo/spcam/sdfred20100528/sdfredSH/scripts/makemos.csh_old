@@ -1,0 +1,70 @@
+#! /bin/csh -f
+#csh script for making a mos file for imcio
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               September 5, 2000
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# makemos.lis : list of input images from which a mos file is created 
+# starsel* : program for selecting stellar ofjects in an input image
+# shotmatch5* : program for matching positions and fluxes described in .mes files
+#
+
+#parameters
+
+#outmos : output mos-file name
+
+#aquire a name of a list and a name of output image 
+
+if ( $#argv != 6 ) then
+    echo "Usage:" $0 " [makemos.lis] [starsel nskysigma(5)] [starsel npix(20)] [starsel peakmin(500)] [starsel peakmax(10000)] [output mos-file name (all.mos)]" 
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo $0 " : Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set makemoslist = $1
+set nskysigma = $2
+set npix = $3
+set peakmin = $4
+set peakmax = $5
+set outmos = $6
+
+#echo
+
+echo "starsel parameters"
+echo "nskysigma="${nskysigma} " npix="${npix} " peakmin="${peakmin} " peakmax="${peakmax}
+
+# select stellar objects
+
+rm shotmatch.lis
+set n = 0
+foreach image (`cat ${makemoslist}`)
+
+    starsel -nskysigma=${nskysigma} -npix=${npix} -aratiomin=0.4 -peakmin=${peakmin} -peakmax=${peakmax} -basename="" -outmes=`basename ${image} .fits`.mes ${image}
+    echo -n `basename ${image} .fits`.mes >> shotmatch.lis
+    echo -n " " >> shotmatch.lis
+@ n = ${n} + 1
+end
+
+#determine a relative position of images
+echo shotmatch5.sh 30 `cat shotmatch.lis`
+shotmatch5.sh 30 `cat shotmatch.lis` | tail -${n} | sed s/mes/fits/ > ${outmos}
+
+echo "done\!"
+#message for matching
+echo "If "${outmos}" is reasonable, run imcio"
+echo "example> imcio -dist_med -dtype=FITSFLOAT -ignor=-32768 "${outmos}" "`basename ${outmos} .mos`".fits"
+
+
+
+
+

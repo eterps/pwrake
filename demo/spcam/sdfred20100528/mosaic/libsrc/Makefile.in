@@ -1,0 +1,27 @@
+SHELL = /bin/sh
+
+@SET_MAKE@
+@SET_GCC@
+CFLAGS= @CFLAGS@
+# LIBIMC= @srcdir@/libimc.a 
+# LIBS= $(LIBIMC) @LIBS@
+LIBS = lsf.o  oyamin2b.o  paint_sub.o  solve.o  sub_sort.o  sub_stat.o sub_sortd.o  sub_statd.o
+INCS = lsf.h  oyamin.h  paint_sub.h  solve.h  sort.h  sortd.h  stat.h  statd.h
+LIBARGS = ../getarg/getargs.o
+
+all: install
+
+$(LIBARGS):
+	(cd ../getarg; $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+install: $(LIBS) $(INCS) $(LIBARGS)
+	cp -pf $(INCS) $(MOSINC)/
+	cp -pf $(LIBS) $(MOSLIB)/
+
+clean : 
+	rm -f *.o *~
+
+distclean : clean
+	(cd $(MOSLIB)/ ; rm -f $(LIBS))
+

@@ -1,0 +1,15 @@
+#! @PERLPATH@
+
+if (@ARGV<=1) 
+{
+    $t=0;
+}
+else
+{
+    $t=$ARGV[1];
+}
+
+$ct=cos($t);
+$st=sin($t);
+printf("-b11=%g -b12=%g -b21=%g -b22=%g\n",
+       $ct,-$st,$st,$ct);

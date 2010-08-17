@@ -1,0 +1,58 @@
+SHELL = /bin/sh
+
+@SET_MAKE@
+@SET_GCC@
+CFLAGS= @CFLAGS@ -DN_LINE_BUFFER=@YWIDTH@ @FORCEFITS@ @LARGEFILE@
+LIBIMC= @srcdir@/libimc.a 
+OFFTSIZE= @SIZEOF_OFF_T@
+#MOSBIN @exec_prefix@/bin
+LIBARGS=$(MOSLIB)/getargs.o
+LIBUTIL= $(MOSLIB)/sub_sort.o $(MOSLIB)/sub_stat.o
+LIBS= $(LIBIMC) @LIBS@
+OBJS= imc.o imc_mos_large.o imc_fits.o postage.o imc_WCS.o
+PROGS= imcio2a 
+
+.KEEP_STATE:
+
+all: $(LIBUTIL) $(LIBIMC) $(LIBARGS) $(PROGS)
+
+$(LIBIMC): $(OBJS) $(LIBUTIL) Makefile
+	ar cvr $(LIBIMC) $(OBJS) $(LIBUTIL)
+	@RANLIB@ $(LIBIMC)
+
+$(LIBUTIL):
+	(cd ../libsrc; $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+$(LIBARGS):
+	(cd ../getarg; $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+install: $(PROGS)  $(LIBIMC)
+	cp -f $(PROGS) $(MOSBIN)/
+	cp $(LIBIMC) $(MOSLIB)/
+	cp -pf imc_head.h imc.h postage.h $(MOSINC)/
+
+clean:
+	rm -f *.o *~ 
+
+distclean: clean
+	rm -f libimc.a $(PROGS)
+
+postage.o : postage.c
+
+imc.o:  imc.c imc_head.h imc.h 
+
+imc_mos.o: imc_mos.c imc_head.h imc.h 
+
+imc_mos_large.o: imc_mos_large.c imc_head.h imc.h 
+
+imc_fits.o: imc_fits.c imc_head.h imc.h 
+
+imc_WCS.o:  imc_WCS.c imc.h 
+
+imcio2a: imcio2a.o $(LIBIMC) $(LIBARGS)
+	$(CC) $(CFLAGS) -o $@ $@.o $(LIBS) $(LIBARGS)
+
+
+

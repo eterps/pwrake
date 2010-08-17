@@ -1,0 +1,60 @@
+#! /bin/csh -f
+#------------------------------------------------------
+#This is a csh script for subtracting sky 
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               March 25, 2000
+#       Revised by Masami Ouchi
+#               September 3, 2000
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# skysb.lis : list of images which are sky-subtracted
+# skysb2* : program for subtracting sky value 
+#
+
+#parameters
+
+# sky-mesh : size of sky-mesh in a unit of pix
+# blankvalue : value of pixels to be masked
+
+#aquire a name of a list and a value of mesh
+
+if ( $#argv != 3 ) then
+    echo "Usage:" $0 " [skysb.lis] [sky-mesh(1000)] [blank value(SPCAM=-32768)]" 
+    echo "More than 50 is recommended for [sky-mesh]"
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "skysb.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set skysblist = $1
+set mesh = $2
+set blankvalue = $3
+
+
+#
+
+#subtract sky of images
+
+echo "blank value = "$blankvalue
+
+foreach image ( `cat $skysblist`)
+    skysb2 -pixignr=${blankvalue} -mesh=${mesh} ${image} s${image}
+    echo skysb2 -pixignr=${blankvalue} -mesh=${mesh} ${image} s${image}
+    echo ""
+end
+
+
+
+
+
+
+

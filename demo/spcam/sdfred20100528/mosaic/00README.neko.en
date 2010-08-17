@@ -1,0 +1,96 @@
+Mosaic CCD data reduction software
+(This document is updated on 2007/07/20)
+# so called NEKOSOFT
+
+  ------------------------------------------------------------------------
+    NO WARRANTY 
+
+IN NO EVENT WE WILL BE LIABLE TO YOU FOR DAMAGES,
+INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL, CONSEQUENTIAL,
+OR ASTRONOMICAL DAMAGES ARISING OUT OF THE USE OR INABILITY 
+TO USE THIS SOFTWARE INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR 
+DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY
+YOU OR THIRD PARTIES OR A WRONG DESCRIPTION OF THESE PROGRAMS
+TO OPERATE WITH ANY OTHER PROGRAMS.
+
+  ------------------------------------------------------------------------
+
+* Environment
+
+  Usually, tested in these OS and compilers
+
+    Linux 2.6.20.4 + gcc-4.1.1 + libc6(2.3.2) (slackware)
+    Solaris 9 + gcc-3.3.2
+
+  Older versions were tested in following environment,
+  but not sure about latest.
+    Linux 2.0.37 + egcs-2.91.66(gcc 2.7.1) + libc5.3 (slackware)
+    Linux 2.2.* + gcc 2.95.3 + libc5.3 (slackware)
+    Linux 2.4.23 + gcc-2.95.3 + libc6(2.2.3) (slackware)
+    Linux 2.4.? + gcc-2.96 + libc6 (Redhat)
+    Linux 2.4.22 + gcc-3.3.2 + libc6(2.2.3) (debian/knoppix)
+    Linux 2.4.22p + gcc-3.3.1 + glibc 2.3.2 (mandrake 9.2)
+    Linux 2.4.22p + icc7.1 + glibc 2.3.2 (mandrake 9.2)
+    Linux 2.6.11 + gcc-3.3.2 + libc6(2.3.2) (slackware)
+    Solaris(sparc) 2.5.1/2.6/7/8 + SunWS cc V4.2/V5.0/V6.0
+    Solaris 9(x86) + gcc-2.95.3
+    Solaris 10(sparc) + gcc-3.3.2
+    COMPAQ Tru64(OSF1/5.1) + Compaq C V6.4
+    COMPAQ Tru64(OSF1/5.1) + gcc 2.9-gnupro-99r1
+    DEC/OSF 4.0 + gcc
+    DEC/OSF 3.2 + cc
+    IRIX 5.3 + cc
+    HP/UX 10.20 + cc
+    MacOSX 10.3 + gcc 3.3
+    
+  There's reports that it does not work in following sets.
+    SubOS 4.1.4 + gcc 2.5.8
+    # too small memory ? details is uncertain.
+
+    FreeBSD 4.2 + gcc 2.95.2 
+    # heapsort(), radixsort() conflict system functions.
+      So great FreeBSD kindly include such very useful functions
+      in stdlib.h...
+      => corrected. names in NEKOSOFT is changed stupidly.
+         I feel dislike to FreeBSD since then.
+
+    Linux 2.2.17 + gcc 3.0 (2001/06/25)
+    # => corrected.
+
+    MacOSX 10.4 
+    # => hfs does not worry about cases, and try to update
+         ./INSTALL when executing make install... => corrected
+
+  Reports are welcome.
+
+  ------------------------------------------------------------------------
+
+* Required softwares
+
+  * sh/bash
+  * perl
+    version4 or later would be OK.
+    => perl5.8 + LANG=*.UTF8 environment causes trouble.
+       LANG=C, LC_ALL=C is recommended. 
+       And some perl scripts are rewritten with C.
+  * awk(nawk)
+    awk/nawk/gawk which returns 1 
+    in following command is requred
+    % echo 0 | awk '{print cos($1)}' 
+  * nroff
+    If you want to read man.
+
+  ------------------------------------------------------------------------
+
+* How to install
+
+0) read INSTALL.en (or INSTALL.ja) 
+1) understand INSTALL.en (or INSTALL.ja) 
+2) follow INSTALL.en (or INSTALL.ja) 
+
+  ------------------------------------------------------------------------
+
+This document is written by YAGI, Masafumi.
+
+=====
+(C) UT-NAOJ mosaic group, 1995-2007, all rights reserved

@@ -1,0 +1,107 @@
+#! /bin/csh -f
+#------------------------------------------------------
+#This is a csh script for smoothing the image with a gaussian filter 
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               September 3, 2000
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# psf.lis : list of images and their corresponding PSF sigma
+#        ex)
+#          gfmTo_H000801object020_w9c2.fits        1.748
+#          gfmTo_H000801object021_si001s.fits      1.454
+#          gfmTo_H000801object021_si002s.fits      1.414
+#
+# smth2* : program for smoothing the image 
+#
+
+#parameters
+
+# input_sigma : input gaussian sigma 
+
+#aquire names of lists
+
+if ( $#argv != 2 ) then
+    echo "Usage:" $0 " [psf.lis ( fits-name, gaussian sigma of psf)] [input sigma ( 0, if not a specific value but to take a maximum sigma of psf.lis)]" 
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "smooth.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set psflist = $1
+#set input_sigma = `echo $2 | gawk '{printf("%f",$1)}'`
+set input_sigma = $2
+
+#determine a resultant sigma
+
+set max_sigma = `gawk '{printf("%f\n",$2)}' ${psflist} | sort -n | tail -1`
+
+echo "maximum sigma of images :" $max_sigma
+echo "input sigma             :" $input_sigma
+
+set result_sigma = \
+    `echo $input_sigma $max_sigma | gawk '$1==0 {printf("%f",$2)} ($1!=0 && $1<$2) {printf("%f",$2)} $1>=$2 {printf("%f",$1)}'`
+
+echo The resultant sigma is set to ${result_sigma} 
+echo ""
+
+#if ( ${result_sigma} == 0 ) then
+#    echo resultant sigma is set to a maximum sigma of images, ${max_sigma}
+#    set result_sigma = ${max_sigma}
+#endif
+
+#okey
+#echo ${result_sigma}
+#echo ${max_sigma}
+
+#if ( 5 < ${max_sigma} ) then
+#    echo "ERROR: specified sigma," ${result_sigma}", is smaller than" 
+#    echo "maximum sigma of input images," ${max_sigma}
+#    exit 1
+#endif
+
+#
+#if ( ${max_sigma}<=${result_sigma} ) then
+#    echo reslutant sigma is set to ${result_sigma}
+#    set result_sigma = ${result_sigma}
+#endif
+
+#if ( ( ${result_sigma} != 0 ) && ( ${max_sigma} > ${result_sigma} ) ) then
+#    echo ERROR: specified sigma, ${result_sigma}, is smaller than 
+#    echo        maximum sigma of input images, ${max_sigma}
+#    exit 1
+#endif
+#if ( !( ${result_sigma} == 0 ) && ( ${max_sigma} <= ${result_sigma} ) ) then
+#    echo reslutant sigma is set to ${result_sigma}
+#    set result_sigma = ${result_sigma}
+#endif
+
+
+#elseif ( ${max_sigma} > ${result_sigma} ) then
+#	echo ERROR: specified sigma, ${result_sigma}, is smaller than 
+#        echo        maximum sigma of input images, ${max_sigma}
+#	exit 1
+#else ( ${max_sigma} <= ${result_sigma} ) then
+#	echo reslutant sigma is set to ${result_sigma}
+#	set result_sigma = ${result_sigma}
+#endif
+
+
+#calculate a filter-size of each image and make a script for running smth2
+
+gawk '{printf("smth2 %s %f p%s\n", $1,sqrt( '${result_sigma}'*'${result_sigma}'-$2*$2),$1)} {printf("set stat = $status\n")} {printf("if ( $stat == 1 ) then \n")} {printf("   echo cp %s p%s\n",$1,$1)} {printf("    cp %s p%s\n",$1,$1)} {printf("endif\n\n")}' ${psflist} > tmp
+
+cat tmp
+csh -f tmp
+
+
+
+

@@ -1,0 +1,45 @@
+# Makefile for compiling programs for Suprime-Cam reduction codes
+
+
+MOSHOME=@MOSHOME@
+
+@SET_MAKE@
+@SET_GCC@
+IMC=$(MOSHOME)/imc
+MOSINC=$(MOSHOME)/include
+MOSLIB=$(MOSHOME)/lib
+CFLAGS= @CFLAGS@ -I$(IMC) -I$(MOSINC)
+LIBIMC=$(IMC)/libimc.a
+BINARIES=blank2 circular_blanks line_blank mask_for_AGX mcomb2 mkhist wmediandiv2 randomXY_mask 
+
+all : $(BINARIES)
+
+mkhist : mkhist.o 
+	$(CC) $(CFLAGS) -o mkhist mkhist.o -lm
+
+circular_blanks : circular_blanks.o $(IMCDIR)
+	$(CC) $(CFLAGS) -o circular_blanks circular_blanks.o $(LIBIMC) -lm
+
+blank2 : blank2.o $(IMCDIR)
+	$(CC) $(CFLAGS) -o blank2 blank2.o $(LIBIMC) -lm
+
+line_blank : line_blank.o $(IMCDIR)
+	$(CC) $(CFLAGS) -o line_blank line_blank.o $(LIBIMC) -lm
+
+mask_for_AGX : mask_for_AGX.o $(IMCDIR)
+	$(CC) $(CFLAGS) -o mask_for_AGX mask_for_AGX.o $(LIBIMC) -lm
+
+wmediandiv2 : wmediandiv2.o $(IMCDIR)
+	$(CC) $(CFLAGS) -o wmediandiv2 wmediandiv2.o $(LIBIMC) -lm
+
+mcomb2 : mcomb2.o $(IMCDIR)
+	$(CC) $(CFLAGS) -o mcomb2 mcomb2.o $(LIBIMC) -lm
+
+randomXY_mask : randomXY_mask.o 
+	$(CC) $(CFLAGS) -o randomXY_mask randomXY_mask.o -lm
+
+clean : 
+	rm -f ./*.o config.log config.status
+
+distclean: clean
+	rm -f $(BINARIES) 

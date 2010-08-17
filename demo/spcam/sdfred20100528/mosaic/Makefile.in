@@ -1,0 +1,45 @@
+CFLAGS= @CFLAGS@
+
+IMC=imc
+MOSLIB=lib
+MOSINC=include
+DETECT=meas
+prefix=@prefix@
+MOSBIN=@exec_prefix@/bin/
+SHELL=@SHELL@
+PERLPATH=@PERLPATH@
+AWK=@AWK@
+YWIDTH=@YWIDTH@
+@SET_MAKE@
+@SET_GCC@
+SUBDIRS=@SUBDIRS@
+VERSION_STRING="@VERSION@"
+
+SUBDIRS = libsrc getarg imc match skysb smth util osmed starsel tool airmass
+
+nothing:
+	@echo If you want to build all, command 'make all'.
+	@echo If you want to build and install, command 'make install'.
+
+dummy:
+
+$(SUBDIRS) : dummy
+	@echo $@':' 
+	if [ -f $@/Makefile.in -a -f $@/Makefile ] ; then (cd $@; $(MAKE) @SET_GCC@ IMC=../$(IMC) MOSLIB=../$(MOSLIB) MOSINC=../$(MOSINC) MOSBIN=$(MOSBIN) DETECT=../$(DETECT)) ; fi
+
+all: $(SUBDIRS) 
+
+install: 
+	-if [ ! -d "$(MOSBIN)" ] ; then mkdir $(MOSBIN) ; fi
+	for dir in $(SUBDIRS); do (cd $$dir; $(MAKE) @SET_GCC@ IMC=../$(IMC) MOSLIB=../$(MOSLIB) MOSBIN=$(MOSBIN) MOSINC=../$(MOSINC) DETECT=../$(DETECT) install) ; done
+
+distclean: clean
+	rm -f *~ *.o config.cache config.log config.status
+	for dir in $(SUBDIRS) ; do if [ -f $$dir/Makefile.in -a -f $$dir/Makefile ] ;  then  (echo $$dir':'; cd $$dir; $(MAKE) distclean); rm -f $$dir/Makefile ; fi ; done
+	if [ -d bin/ ] ; then rm -f bin/* ; fi
+	if [ -d lib/ ] ; then rm -f lib/* ; fi
+	if [ -d include/ ] ; then rm -f include/* ; fi
+	rm -f ./Makefile 
+
+clean: 
+	for dir in $(SUBDIRS) ; do (echo $$dir':'; cd $$dir; $(MAKE) clean) ; done

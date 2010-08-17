@@ -1,0 +1,54 @@
+#! @PERLPATH@
+
+$PI=3.14159265358979;
+
+if (@ARGV<2)
+{
+    print "Usage\: airmass.pl PA z [t]\n";
+    exit(-1);
+}
+
+$PA=$ARGV[0]/180*$PI;
+$z=$ARGV[1];
+
+if (@ARGV==2) 
+{
+    $t=0;
+}
+else
+{
+    $t=$ARGV[2];
+}
+
+## r(") = A1*tan(z) + A3*tan^3(z) + A5*tan^5(z) 
+## r(rad) = a1*tan(z) + a3*tan^3(z) + a5*tan^5(z) 
+## dr/dz=a1*sec^2(z)+3*a3*tan^2(z)*sec^2(z)+5*a5*tan^4(z)*sec^2(z)
+## a=1-dr/dz
+
+$a1=1.7330e-4;
+$a3=-2.09e-7;
+$a5=7.95e-10;
+
+$sec2z=1/cos($z)/cos($z);
+$tan2z=sin($z)*sin($z)*$sec2z;
+
+# printf("%f %f\n",sqrt($sec2z),sqrt($tan2z));
+
+$b=($a1+$tan2z*(3*$a3+5*$a5*$tan2z))*$sec2z;
+$a=1-$b;
+
+$cP=cos($PA);
+$sP=sin($PA);
+
+$ct=cos($t);
+$st=sin($t);
+
+$b11=$ct*($cP*$cP+$a*$sP*$sP)-$st*$b*$sP*$cP;
+$b12=$ct*$b*$sP*$cP-$st*($a*$cP*$cP+$sP*$sP);
+$b21=$st*($cP*$cP+$a*$sP*$sP)+$ct*$b*$sP*$cP;
+$b22=$st*$b*$sP*$cP+$ct*($a*$cP*$cP+$sP*$sP);
+
+# printf("%f %f\n",$a,$b);
+# printf("det=%f\n",$b11*$b22-$b12*$b21);
+printf("-b11=%g -b12=%g -b21=%g -b22=%g\n",
+       $b11,$b12,$b21,$b22);

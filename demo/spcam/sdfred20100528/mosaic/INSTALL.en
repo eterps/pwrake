@@ -1,0 +1,62 @@
+INSTALL (mini) 
+
+NO WARRANTY
+
+The following instruction assumes bash.
+If you use csh/tcsh, please translate export as setenv or so,
+or I reccomend to use sh/bash shells.
+
+1) retrieve latest code.
+   (or latest stable ones)
+
+2) expand in some directry.
+   mosaic/... would be created.
+   You can change the name, before configure.
+
+3) Set environment variables, CFLAGS and CC so that
+   ANSI+POSIX c compiler is avaibable. 
+
+4) Enter the .../mosaic/ directory, and
+   % configure
+   You may want to set options. If you want, you can.
+
+5) % make all
+   If you want to compile single directory, such as imc,
+   command from as
+   % make imc
+   If you want to command in the subdirectory,
+   you should set several environment variables, 
+   e.g.) 
+     % export IMC=~/mosaic/imc
+     % export MOSLIB=~/mosaic/lib
+     % export MOSINC=~/mosaic/include
+
+6) % make install
+   Binaries and scripts are copied to bindir (in default, .../mosaic/bin/)
+   Write permission to the directory is required.
+   You can also set prefix when make install
+   e.g.)
+   % make install prefix=/usr/local
+
+   If you want not all directories, set SUBDIRS,
+   e.g.)
+   %  make install SUBDIRS="imc util tool"
+
+   Some warning may appear when overwriting scripts,
+   this bug should be fixed in future.
+  
+   In subdirectory, you should set MOSBIN to do make install
+   e.g.)
+   export MOSBIN=~/mosaic/bin  
+
+7) % make clean
+   Cleans *.o, but MOSBIN/, MOSLIB/, or MOSINC/ are untouched
+   % make distclean
+   Cleans all except original code.
+
+This document is written by YAGI, Masafumi.
+
+=====
+(C) UT-NAOJ mosaic group, 1995-2004, all rights reserved
+
+2004/06/08 updated

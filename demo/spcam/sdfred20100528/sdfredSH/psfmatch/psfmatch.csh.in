@@ -1,0 +1,242 @@
+#! @CSHELL@ -f
+
+if ( $#argv != 8 ) then
+    echo "Usage:" $0 " [input image] [max number of objects(50)] [min peak flux(2000)] [max peak flux(30000)] [min FWHM(2.3)] [max FWHM(6.5)]  [output image] [resultant FWHM(4.5)]" 
+    echo "example:"
+    echo "  psfmatch.csh file.fits 50 2000 30000 2.3 6.5 pfile.fits 4.5"
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "psfmatch.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set image_in = $1
+set number_of_obj = $2
+set min_flux=$3
+set max_flux=$4
+set min_fwhm=$5
+set max_fwhm=$6
+set image_out = $7
+set result_fwhm = $8
+
+set SDFREDSH = @SDFREDSH@
+set AWK = @AWK@
+
+# measure fwhm_s
+
+    sex ${image_in} -c $SDFREDSH/psfmatch/psfmatch.sex > /dev/null
+
+    $AWK '{print $0}' psfmatch.cat | sort -k 7n > tmp1
+    $AWK '$4>0 && $8>'${min_flux}' && $8<'${max_flux}' && $7>'${min_fwhm}' && $7<'${max_fwhm}' {print $0}' tmp1 | head -${number_of_obj} > psfmatchout.lis
+
+    $AWK '{print $7}' psfmatchout.lis > tmp2
+    set fwhmpsf = `mkhist tmp2 ${min_fwhm} ${max_fwhm} 0.1 | sort -k 2nr | head -1 | $AWK '{printf("%.2f\n",$1)}'`
+
+    #set the initial fwhm
+    set fwhm_f = ${fwhmpsf}
+    set fwhm_s = ${fwhmpsf}
+
+#calculate the difference between input and resulting FWHM_PSF
+    set diff_fwhm = `echo "" | $AWK '{print '${result_fwhm}'-'${fwhm_s}'}'`
+  
+
+if ( `echo ${diff_fwhm} | $AWK '{if($1>=0.1 ) {print "1"}} {if($1<0.1 ) {print "0"}}'` ) then
+
+    #measure fwhm_c
+    set gaussian_sigma_c = `echo "" | $AWK '{print sqrt('${result_fwhm}'**2-'${fwhm_s}'**2)/2.35482}' `
+
+    smth2 ${image_in} ${gaussian_sigma_c} ${image_out}
+
+   sex ${image_out} -c $SDFREDSH/psfmatch/psfmatch.sex > /dev/null
+
+    $AWK '{print $0}' psfmatch.cat | sort -k 7n > tmp1
+    $AWK '$4>0 && $8>'${min_flux}' && $8<'${max_flux}' && $7>'${min_fwhm}' && $7<'${max_fwhm}' {print $0}' tmp1 | head -${number_of_obj} > psfmatchout.lis
+
+    $AWK '{print $7}' psfmatchout.lis > tmp2
+    set fwhmpsf = `mkhist tmp2 ${min_fwhm} ${max_fwhm} 0.1 | sort -k 2nr | head -1 | $AWK '{printf("%.2f\n",$1)}'`
+
+    set fwhm_c = ${fwhmpsf}
+
+echo "fwhm_c="${fwhm_c}
+    #calculate the difference between input and resulting FWHM_PSF
+    set diff_fwhm = `echo "" | $AWK '{print '${result_fwhm}'-'${fwhm_c}'}'`
+    if ( `echo ${diff_fwhm} | $AWK '$1<0.1 && $1>-0.1 {print "1"} $1>=0.1 || $1<=-0.1 {print "0"}'` ) then
+
+echo ok
+	set fwhm_f = ${fwhmpsf}
+	goto no_smooth
+    endif
+
+    # measure fwhm_u
+
+    set gaussian_sigma_u = `echo "" |$AWK '{print '${gaussian_sigma_c}'*2.0}'` 
+    smth2 ${image_in} ${gaussian_sigma_u} ${image_out}
+
+   sex ${image_out} -c $SDFREDSH/psfmatch/psfmatch.sex > /dev/null
+
+    $AWK '{print $0}' psfmatch.cat | sort -k 7n > tmp1
+    $AWK '$4>0 && $8>'${min_flux}' && $8<'${max_flux}' && $7>'${min_fwhm}' && $7<'${max_fwhm}' {print $0}' tmp1 | head -${number_of_obj} > psfmatchout.lis
+
+    $AWK '{print $7}' psfmatchout.lis > tmp2
+	#if nothing in tmp2, because gaussian_sigma_u is too large,
+	if ( `wc -l tmp2 | $AWK '$1<5 {print 1} $1>=5 {print 0}'` ) then
+	    echo "estimate gaussian_sigma_u again"
+	    set gaussian_sigma_u = `echo "" |$AWK '{print '${gaussian_sigma_c}'*1.5}'` 
+	    smth2 ${image_in} ${gaussian_sigma_u} ${image_out}
+
+	    sex ${image_out} -c $SDFREDSH/psfmatch/psfmatch.sex > /dev/null
+
+	    $AWK '{print $0}' psfmatch.cat | sort -k 7n > tmp1
+	    $AWK '$4>0 && $8>'${min_flux}' && $8<'${max_flux}' && $7>'${min_fwhm}' && $7<'${max_fwhm}' {print $0}' tmp1 | head -${number_of_obj} > psfmatchout.lis
+
+	    $AWK '{print $7}' psfmatchout.lis > tmp2
+
+	endif
+	#---
+
+    set fwhmpsf = `mkhist tmp2 ${min_fwhm} ${max_fwhm} 0.1 | sort -k 2nr | head -1 | $AWK '{printf("%.2f\n",$1)}'`
+
+    set fwhm_u = ${fwhmpsf}
+
+    #calculate the difference between input and resulting FWHM_PSF
+    set diff_fwhm = `echo "" | $AWK '{print '${result_fwhm}'-'${fwhm_u}'}'`
+    if ( `echo ${diff_fwhm} | $AWK '$1<0.1 && $1>-0.1 {print "1"} $1>=0.1 || $1<=-0.1 {print "0"}'` ) then
+	set fwhm_f = ${fwhmpsf}
+	goto no_smooth
+    endif
+
+
+#   # measure fwhm_l
+#
+#   set gaussian_sigma_l = `echo "" | $AWK '{print '${gaussian_sigma_s}'/1.5}'` 
+#    smth2 ${image_in} ${gaussian_sigma_l} tmp_psfmatch.fits
+#
+#   sex tmp_psfmatch.fits -c $SDFREDSH/psfmatch/psfmatch.sex
+#
+#    $AWK '{print $0}' psfmatch.cat | sort -k 7n > tmp1
+#    $AWK '$4>0 && $8>'${min_flux}' && $8<'${max_flux}' && $7>'${min_fwhm}' && $7<'${max_fwhm}' {print $0}' tmp1 | head -${number_of_obj} > psfmatchout.lis
+#
+#    $AWK '{print $7}' psfmatchout.lis > tmp2
+#    set fwhmpsf = `mkhist tmp2 ${min_fwhm} ${max_fwhm} 0.1 | sort -k 2nr | head -1 | $AWK '{printf("%.2f\n",$1)}'`
+#
+#    set fwhm_l = ${fwhmpsf}
+
+echo "fwhm_s="${fwhm_s}
+echo "fwhm_c="${fwhm_c}" gaussian_sigma_c="${gaussian_sigma_c}
+echo "fwhm_u="${fwhm_u}" gaussian_sigma_u="${gaussian_sigma_u}
+#echo "fwhm_l="${fwhm_l}" gaussian_sigma_l="${gaussian_sigma_l}
+
+
+    #determine fwhm1 and fwhm2
+    if ( `echo "" | $AWK '{if('${result_fwhm}'>'${fwhm_s}' && '${result_fwhm}'<= '${fwhm_c}') {print "1"}}'`) then
+	set fwhm1 = ${fwhm_s}
+	set fwhm2 = ${fwhm_c}
+	set gaussian_sigma1 = `echo "" | $AWK '{print '${gaussian_sigma_c}'/1.5}'`
+	set gaussian_sigma2 = ${gaussian_sigma_c}
+    endif
+    if ( `echo "" | $AWK '{if( '${result_fwhm}'<='${fwhm_u}' && '${result_fwhm}'> '${fwhm_c}' ) {print "1"}}'`) then
+	set fwhm1 = ${fwhm_c}
+	set fwhm2 = ${fwhm_u}
+	set gaussian_sigma1 = ${gaussian_sigma_c}
+	set gaussian_sigma2 = ${gaussian_sigma_u}
+    endif
+
+    #if ( `echo "" | $AWK '{if( '${fwhm_c}'=='${fwhm_u}') {print "1"}}'`) then
+    #	set fwhm1 = ${fwhm_c}
+    #	set fwhm2 = ${fwhm_u}
+    #	set gaussian_sigma1 = ${gaussian_sigma_c}
+    #	set gaussian_sigma2 = ${gaussian_sigma_u}
+    #endif
+
+    echo "fwhm1="${fwhm1}" gaussian_sigma1="${gaussian_sigma1} 
+    echo "fwhm2="${fwhm2}" gaussian_sigma2="${gaussian_sigma2} 
+
+    #while diff_fwhm is larger than 0.1
+    #calculate the difference between input and resulting FWHM_PSF
+    set diff_fwhm = `echo "" | $AWK '{print '${result_fwhm}'-'${fwhm_s}'}'`
+    while ( `echo ${diff_fwhm} | $AWK '{if( ($1>=0.1 || $1<=-0.1) && '${gaussian_sigma2}'-'${gaussian_sigma1}'>=0.01 ) {print "1"}} {if( ($1<0.1 && $1>-0.1) || '${gaussian_sigma2}'-'${gaussian_sigma1}'<0.01 ) {print "0"}}'` ) 
+
+	echo "diff_fwhm="${diff_fwhm}
+	echo "fwhm1="${fwhm1}" gaussian_sigma1="${gaussian_sigma1} 
+	echo "fwhm2="${fwhm2}" gaussian_sigma2="${gaussian_sigma2} 
+
+	set gaussian_sigma_c = `echo "" | $AWK '{print ('${gaussian_sigma1}'+'${gaussian_sigma2}')/2.0}'`
+
+	echo "gaussian_sigma_c="${gaussian_sigma_c}
+
+	#smooth the image
+	smth2 ${image_in} ${gaussian_sigma_c} ${image_out}
+	
+	set status_smth2 = ${status}
+	#in case if no smoothing is done
+	if( ${status_smth2} == 1 ) then
+	    echo cp ${image_in} ${image_out}
+	    cp ${image_in} ${image_out}
+	    sex ${image_out} -c $SDFREDSH/psfmatch/psfmatch.sex > /dev/null
+	    $AWK '{print $0}' psfmatch.cat | sort -k 7n > tmp1
+	    $AWK '$4>0 && $8>'${min_flux}' && $8<'${max_flux}' && $7>'${min_fwhm}' && $7<'${max_fwhm}' {print $0}' tmp1 | head -${number_of_obj} > psfmatchout.lis
+
+	    $AWK '{print $7}' psfmatchout.lis > tmp2
+	    set fwhmpsf = `mkhist tmp2 ${min_fwhm} ${max_fwhm} 0.1 | sort -k 2nr | head -1 | $AWK '{printf("%.2f\n",$1)}'`
+            set fwhm_f = ${fwhmpsf}
+	    goto no_smooth
+	endif
+
+	#measure FWHM_PSF
+	sex ${image_out} -c $SDFREDSH/psfmatch/psfmatch.sex > /dev/null
+
+	$AWK '{print $0}' psfmatch.cat | sort -k 7n > tmp1
+	$AWK '$4>0 && $8>'${min_flux}' && $8<'${max_flux}' && $7>'${min_fwhm}' && $7<'${max_fwhm}' {print $0}' tmp1 | head -${number_of_obj} > psfmatchout.lis
+
+	$AWK '{print $7}' psfmatchout.lis > tmp2
+	set fwhmpsf = `mkhist tmp2 ${min_fwhm} ${max_fwhm} 0.1 | sort -k 2nr | head -1 | $AWK '{printf("%.2f\n",$1)}'`
+
+	set fwhm_c = ${fwhmpsf}
+        set fwhm_f = ${fwhmpsf}
+
+       #calculate the difference between input and resulting FWHM_PSF
+       set diff_fwhm = `echo "" | $AWK '{print '${result_fwhm}'-'${fwhm_c}'}'`
+
+ 
+	#determine fwhm1 and fwhm2 for the next smoothing
+        if ( `echo "" | $AWK '{if('${result_fwhm}'>'${fwhm1}' && '${result_fwhm}'<= '${fwhm_c}') {print "1"}}'`) then
+	set fwhm1 = ${fwhm1}
+	set fwhm2 = ${fwhm_c}
+	set gaussian_sigma1 = ${gaussian_sigma1}
+	set gaussian_sigma2 = ${gaussian_sigma_c}
+    endif
+    if ( `echo "" | $AWK '{if('${result_fwhm}'<'${fwhm2}' && '${result_fwhm}'> '${fwhm_c}') {print "1"}}'`) then
+	set fwhm1 = ${fwhm_c}
+	set fwhm2 = ${fwhm2}
+	set gaussian_sigma1 = ${gaussian_sigma_c}
+	set gaussian_sigma2 = ${gaussian_sigma2}
+    endif
+
+   
+
+    end
+
+else
+    echo "seeing of "${image_in}" is "${fwhm_s}", which is worse than "${result_fwhm} 
+    echo cp ${image_in} ${image_out}
+    cp ${image_in} ${image_out}
+
+endif 
+
+no_smooth:
+
+
+set upper_fwhmpsf = `echo ${fwhm_f} | $AWK '{printf("%f\n", $1+0.2)}'`
+set lower_fwhmpsf = `echo ${fwhm_f} | $AWK '{printf("%f\n",$1-0.2)}'`
+
+echo ${image_out} " " ${fwhm_f} " " `mkhist tmp2 ${lower_fwhmpsf} ${upper_fwhmpsf} 0.1 | $AWK '{printf("%d ",$2)}'`
+
+#$AWK '{print "CIRCLE( "$2" "$3" 30)"}' fwhmpsfout.lis > ${output}
+
+
+
+
+
+

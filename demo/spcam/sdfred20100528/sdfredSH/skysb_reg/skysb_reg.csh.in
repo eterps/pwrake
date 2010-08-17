@@ -1,0 +1,187 @@
+#! @CSHELL@ -f
+#------------------------------------------------------
+#This is a csh script for subtracting sky 
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               March 25, 2000
+#       Revised by Masami Ouchi
+#               September 3, 2000
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# skysb.lis : list of images which are sky-subtracted
+# skysb3b* : program for subtracting sky value 
+#
+
+#parameters
+
+# sky-mesh : size of sky-mesh in a unit of pix
+# blankvalue : value of pixels to be masked
+
+#aquire a name of a list and a value of mesh
+
+if ( $#argv != 2 ) then
+    echo "Usage:" $0 " [skysb.lis] [sky-mesh(64)]"
+    echo "More than 32 is recommended for [sky-mesh]"
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "skysb_reg.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set skysblist = $1
+set mesh = $2
+set blankvalue = -32768
+
+set AWK = @AWK@
+set SDFREDSH = @SDFREDSH@
+#
+
+# version 1.2 
+## foreach image (`cat ${skysblist}`)
+set list = ${skysblist}
+set nmax = `wc -l $list | awk '{print $1}'`
+@ n = 1
+while ( $n <= $nmax )
+set image = `sed -n "$n"p $makemoslist`
+
+
+    #blank object
+
+#
+##if (0) then
+#
+	#determine the mesh size for SExtractor
+	set sex_mesh_s = 256
+#version 1.2 getkey.pl => getkey
+	set xpix = `getkey NAXIS1 ${image}`
+	set ypix = `getkey NAXIS2 ${image}`
+
+	set x_residual = `echo ${xpix} ${sex_mesh_s} | $AWK '{print $1%$2}'`
+	set y_residual = `echo ${ypix} ${sex_mesh_s} | $AWK '{print $1%$2}'`
+
+	set x_multiple = `echo ${xpix} ${sex_mesh_s} | $AWK '{printf("%d\n",$1/$2)}'`
+	set y_multiple = `echo ${ypix} ${sex_mesh_s} | $AWK '{printf("%d\n",$1/$2)}'`
+
+	#for x_axis
+	#echo ${x_residual} ${x_multiple} ${sex_mesh_s}
+	if (`echo ${x_residual} | $AWK '{if ($1==0) {print 1} else {print 0}}'`) then
+	set x_add = 0
+	    else
+	    if (`echo ${x_residual} ${sex_mesh_s} | $AWK '{if ($1<=$2/2.) {print 1} else {print 0}}'`) then
+		#set x_add = `echo ${x_residual} ${x_multiple} 
+		#| $AWK '{if ($1%$2==0) {printf("%d\n",$1/$2)} else 
+		#{printf("%d\n",$1/$2+1)}}'`
+		set x_add = `echo ${x_residual} ${x_multiple} | $AWK '{printf("%d\n",$1/$2+1)}'`
+	    else
+		#set x_add = `echo ${x_residual} ${x_multiple} ${sex_mesh_s} 
+		#| $AWK '{if (($3-$1)%$2==0) {printf("%d\n",($1-$3)/$2)} else 
+		#{printf("%d\n",($1-$3)/$2+1)}}'`
+		set x_add = `echo ${x_residual} ${x_multiple} ${sex_mesh_s} | $AWK '{printf("%d\n",($1-$3)/$2+1)}'`
+	    endif
+	endif
+	set sex_mesh_x = `echo ${x_add} ${sex_mesh_s} | $AWK '{print $1+$2}'`
+
+
+	#for y_axis
+	#echo ${y_residual} ${y_multiple} ${sex_mesh_s}
+	if (`echo ${y_residual} | $AWK '{if ($1==0) {print 1} else {print 0}}'`) then
+	set y_add = 0
+	    else
+	    if (`echo ${y_residual} ${sex_mesh_s} | $AWK '{if ($1<=$2/2.) {print 1} else {print 0}}'`) then
+		#set y_add = `echo ${y_residual} ${y_multiple} 
+		#| $AWK '{if ($1%$2==0) {printf("%d\n",$1/$2)} else 
+		#{printf("%d\n",$1/$2+1)}}'`
+		set y_add = `echo ${y_residual} ${y_multiple} | $AWK '{printf("%d\n",$1/$2+1)}'`
+	    else
+		#set y_add = `echo ${y_residual} ${y_multiple} ${sex_mesh_s} 
+		#| $AWK '{if (($3-$1)%$2==0) {printf("%d\n",($1-$3)/$2)} else 
+		#{printf("%d\n",($1-$3)/$2+1)}}'`
+		set y_add = `echo ${y_residual} ${y_multiple} ${sex_mesh_s} | $AWK '{printf("%d\n",($1-$3)/$2+1)}'`
+	    endif
+	endif
+	set sex_mesh_y = `echo ${y_add} ${sex_mesh_s} | $AWK '{print $1+$2}'`
+
+
+	#echo $xpix $sex_mesh_x | $AWK '{print $1" "$2"   "$1%$2}' 
+	#echo $ypix $sex_mesh_y | $AWK '{print $1" "$2"   "$1%$2}' 
+
+	echo "#"
+	echo "#SExtractor mesh size"
+	echo "#image[2] x_mesh[3] y_mesh[4] x_residual[5] y_residual[6]  xres_ratio[7] yres_ratio[8]"
+        echo $xpix $sex_mesh_x $ypix $sex_mesh_y $image | $AWK '{printf("#sexmesh %s %d %d %d %d    %.2f %.2f\n",$5,$2,$4,$1%$2,$3%$4,1-($1%$2)/$2,1-($3%$4)/$4)}'
+
+	    #NOTE
+	    #chip  : dx_blank dy_blank
+	    #si001s: 44       14
+	    #si002s: 29       31
+	    #si005s: 30        9
+	    #si006s: 13       30
+	    #w4c5  : 55       30
+	    #w67c1 : 40       46
+	    #w6c1  : 45       25
+	    #w7c3  : 40       43
+	    #w93c2 : 47       30
+	    #w9c2  : 47       25
+
+	sed s/USER_BACK_SIZE/${sex_mesh_x}", "${sex_mesh_y}/ $SDFREDSH/skysb_reg/skysb_reg.sex > tmp_skysb.sex 
+
+#
+##endif
+#
+
+
+    rm -f check_skysb.fits
+    #sex ${image} -c $SDFREDSH/skysb_reg/skysb_reg.sex
+    sex ${image} -c tmp_skysb.sex > /dev/null
+    rm -f tmp_hole_skysb.fits
+    uppercut -imin=-10 -imax=0.0 -pixignr=${blankvalue} check_skysb.fits tmp_hole_skysb.fits
+    arithimg ${image} - tmp_hole_skysb.fits h${image}
+
+    
+    #make a sky frame
+
+    #skysb3 -imin=-1000 -imax=32500 -pixignr=${blankvalue} -mesh=${mesh} ${image} s${image}    
+
+    #skysb3a -imin=-1000 -imax=32500 -pixignr=${blankvalue} -mesh=${mesh} -skyref=h${image} ${image} s2${image}
+
+    skysb3b -imin=-1000 -imax=32500 -pixignr=${blankvalue} -mesh=${mesh} -skyref=h${image} ${image} s${image}
+
+
+    #--for test
+    ##skydet_beta -mesh=${mesh} -outfile=sky_${image} h${image}
+    ##skydet_beta -mesh=${mesh} -outfile=sky2_${image} ${image}
+    #arithimg s2${image} - s${image} diff_${image}
+    #arithimg ${image} - s${image} ds_${image}
+    #arithimg ${image} - s2${image} ds2_${image}
+
+    #--for test end
+@ n++    
+end
+
+
+
+#
+
+#subtract sky of images
+
+#echo "blank value = "$blankvalue
+#
+#foreach image ( `cat $skysblist`)
+#    skysb3 -imin=-1000 -imax=32500 -pixignr=${blankvalue} -mesh=${mesh} ${image} s${image}
+#    echo skysb3 -imin=-1000 -imax=32500 -pixignr=${blankvalue} -mesh=${mesh} ${image} s${image}
+#    echo ""
+#end
+
+
+
+
+
+
+

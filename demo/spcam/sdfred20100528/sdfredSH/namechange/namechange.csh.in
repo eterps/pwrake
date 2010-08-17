@@ -1,0 +1,75 @@
+#! @CSHELL@ -f
+
+#aquire names of lists
+
+if ( $#argv != 1 ) then
+    echo "Usage:" $0 " [*.lis(SUP file names)]" 
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "namechange.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set list = $1
+set AWK = @AWK@
+
+rm -f tmp1 tmp2
+
+# version 1.2
+## foreach file (`cat ${list}`)
+set nmax = `wc -l $list | awk '{print $1}'`
+@ n = 1
+while ( $n <= $nmax )
+set image = `sed -n "$n"p $list`
+    echo `getkey S_UFNAME $image` >> tmp1
+    echo `getkey DATE-OBS $image` >> tmp2
+@ n++
+end
+
+## 2006/01/15 added
+
+@ x = ` wc -l $list | $AWK '{print $1}' `
+@ y = ` wc -l tmp1 | $AWK '{print $1}' `
+@ z = ` wc -l tmp2 | $AWK '{print $1}' `
+
+echo number of input files : $x
+echo number of file names  : $y
+echo number of file dates  : $z
+
+if ( $x != $y ) then
+    echo "Some errors seem to happen"
+    echo "number of input names:" $x " number of output names:" $y 
+    echo "somehow getheader dose not work"
+    exit 1
+endif
+
+if ( $x != $z ) then
+    echo "Some errors seem to happen"
+    echo "number of input names:" $x " number of output dates:" $z 
+    echo "somehow getheader dose not work"
+    exit 1
+endif
+
+## 2006/01 revised 
+
+sed 's/-/ /g' tmp2 | $AWK '$1>=2000 && $1<=2010 {print "0"$1-2000""" "$2" "$3} $1>2010 {print $1-2000""" "$2" "$3} $1<2000 {print $1-1900""" "$2" "$3}' > tmp3
+
+## $AWK '$3!=1 && $3<=10 {print $1""$2"0"$3-1} $3!=1 && $3>10 {print $1""$2""$3-1} $3==1 && ($2==2 || $2==4 || $2==6 || $2==8 || $2==9) {print $1"0"$2-1"""31"} $3==1 && $2==11 {print $1""$2-1"""31"} $3==1 && $2==1 && $1>0 {print $1-1"1231"} $3==1 && $2==1 && $1==0 {print "991231"}  $3==1 && ($2==5 || $2==7 || $2==10) {print $1"0"$2-1"""30"} $3==1 && $2==3 {print $1"02UR"} $3==1 && $2==12 {print $1""$2-1"""30"}' tmp3 > tmp4
+
+$AWK '{y=$1%100;m=$2;d=$3-1;if(d==0){m-=1;d=31;if(m==4||m==6||m==9||m==11){d=30;}if(m==2){d=28;if(y%4==0)d=29}if(m==0){m=12;y=($1+99)%100}}printf("%02d%02d%02d\n",y,m,d);}' tmp3 > tmp4
+
+## The following line would be simpler, though tmp3 is not created. 
+## sed 's/-/ /g' tmp2 | $AWK '{y=$1%100;m=$2;d=$3-1;if(d==0){m-=1;d=31;if(m==4||m==6||m==9||m==11){d=30;}if(m==2){d=28;if(y%4==0)d=29}if(m==0){m=12;y=($1+99)%100}}printf("%02d%02d%02d\n",y,m,d);}' > tmp4
+
+paste $list tmp4 tmp1 | $AWK '{ print "mv "$1" H"$2""$3} ' > tmp5
+cat tmp5
+echo "processing..."
+
+#paste $list tmp4 tmp1 | $AWK '{ print "mv "$1" H"$2""$3} ' | csh -f
+#csh -f tmp5
+@CSHELL@ -f tmp5
+
+
+

@@ -1,0 +1,144 @@
+procedure geomatch ( in_image, out_image, ref_image, ref_starpos, tmptrans_pos, max_fwhm ) 
+
+	string in_image 	{"", prompt="input image name"}
+	string out_image 	{"", prompt="output image name"}
+	string ref_image 	{"", prompt="reference image name"}
+	string ref_starpos	{"", prompt="all reference starpos Xref Yref"}
+	string tmptrans_pos	{"", prompt="temporary Xref Yref Xin Yin"}
+	real   max_fwhm         {"", prompt="max FWHM of stellar object(input image)"}
+	real   peak_flux	{"10000", prompt="peak flux of stellar object(input image)"}
+       #real   ratio  {"10000.", prompt="ratio of apertures to the image area"}
+	#real ap_diameter  {"10.", prompt="aperture diameter in pix"}
+	#real zmag	{"32.24", prompt="zero point of an input image"}
+	#real   limit    {"5.", prompt="limiting sigma"}
+
+begin
+
+	#string tmpfile1, tmpfile2, tmpfile3
+	#string tmpfile4, tmpfile5, tmpfile6
+	#string tmpfile7
+	int xmax,ymax	
+	int p_xxorder,p_xyorder,p_yxorder,p_yyorder
+	#real ap_radius
+	#real inner_annulus, width_annulus
+	#real fwhm,sigma
+	##real limit
+	#real mag
+	#int nrand
+	#int nrand_pick
+
+	#ap_radius=ap_diameter/2.
+	#inner_annulus=ap_radius
+
+	hselect ( ref_image, fields="NAXIS1,NAXIS2", expr+) \
+		| scanf ("%d %d",xmax,ymax)
+
+	#calculate the temporarily transfered star positions
+	del tmptrans.db
+	del tmptrans_refstarpos
+	del tmp_transpos_refpos
+	geomap ( tmptrans_pos, "tmptrans.db", 1, xmax, 1, ymax, \
+		fitgeometry = "general", \
+		xxterms = "half",  yxterms = "half", \
+		xxorder=2, xyorder=2, yxorder=2, yyorder=2, \
+		reject = INDEF, int+)
+
+	geoxytran ( ref_starpos, "tmptrans_refstarpos", \
+		"tmptrans.db", tmptrans_pos,\
+		geometry = "geometric")
+
+	joinlines ( "tmptrans_refstarpos", \
+		ref_starpos, > "tmp_transpos_refpos" )
+
+
+	#detect the temporarily transfered stars
+	del tmp_in_image
+	del tmp_max_fwhm
+	del tmp_peak_flux
+	print ( in_image, > "tmp_in_image" )
+	print ( max_fwhm, > "tmp_max_fwhm" )
+	print ( peak_flux, > "tmp_peak_flux" )
+	!sex `cat tmp_in_image` -c @SDFREDCL@/geomatch/geomatch.sex
+
+	!cat geomatch.cat | @AWK@ '$1!~/#/ && $8>0 && $11<'`cat tmp_max_fwhm`' && $12<'`cat tmp_peak_flux`' { print $6" "$7" "$2" "$3 }' > geomatch_ref_inimage.pos
+
+	geomap ( "geomatch_ref_inimage.pos", "geomatch_ref_inimage.db", \
+		1, xmax, 1, ymax, reject = INDEF, int+, \
+		fitgeometry = "general", \
+		xxterms = "half",  yxterms = "half")
+
+	geotran ( in_image, out_image, \
+		"geomatch_ref_inimage.db", "geomatch_ref_inimage.pos",\
+		geometry = "geometric" )
+
+#---
+
+	#print ("1.234 5 7.34abc") | scanf ("%g %d %f %s", x, i, y, s1)
+
+	#nrand=xmax*ymax/ratio	
+
+	#tmpfile1 = mktemp ("tmp$tmp")
+	#tmpfile2 = mktemp ("tmp$tmp")
+	#tmpfile3 = mktemp ("tmp$tmp")
+	#tmpfile4 = mktemp ("tmp$tmp")
+	#tmpfile5 = mktemp ("tmp$tmp")
+	#tmpfile6 = mktemp ("tmp$tmp")
+	#tmpfile7 = mktemp ("tmp$tmp")
+
+
+	#urand ( nrand , 1 , seed=INDEF, scale_factor=xmax, > tmpfile1 )
+	#sleep ( 1 )
+	#urand ( nrand , 1 , seed=INDEF, scale_factor=ymax, > tmpfile2 )
+	#joinlines ( tmpfile1 , tmpfile2 , > tmpfile3 )
+
+	#type ( tmpfile3 ) | head
+	#type ( tmpfile3 ) | graph po+
+
+	#printf("Number of randam apertures = %d\n",nrand)
+
+
+	#phot ( image, coords=tmpfile3, output=tmpfile4, int-, \
+	#	verify-, verbose-, \
+	#	datamin=-10000, datamax=10000, \
+	#	calgorithm="none",   \
+	#       salgorithm="mode",annulus=inner_annulus,dannulus=width_annulus,\
+	#	sloclip=5.,shiclip=5.,sloreject=3.,shireject=3,rgrow=5.,\
+	#	weighting="constant",apertures=ap_radius,zmag=zmag )
+
+	#phot ( image, coords=tmpfile3, output=tmpfile4, int-, \
+	#	verify-, verbose-, \
+	#	datamin=-10000, datamax=10000, \
+	#	calgorithm="none",   \
+	#       salgorithm="constant",skyvalue=0.,\
+	#	sloclip=5.,shiclip=5.,sloreject=3.,shireject=3,rgrow=5.,\
+	#	weighting="constant",apertures=ap_radius,zmag=zmag )
+
+	#del ( "tmp" )
+	#type ( tmpfile4, > "tmp" )
+
+	#txdump ( tmpfile4, "FLUX", "PIER==0", head-, > tmpfile5 )
+
+	#count ( tmpfile5 ) | scanf("%d",nrand_pick)
+	#printf("Number of good apertures = %d\n",nrand_pick)
+		
+
+	#phist ( tmpfile5 ,z1=-500,z2=500,nbins=50,listout+, > tmpfile6 )
+
+	#printf("ngaussfit is excuted, fit by (f) then exit by (q) in graph corsour\n")
+	#ngauss ( tmpfile6, tmpfile7, function="Gaussians", rt-,\
+	#	ampl1=100.,cent1=0.,fwhm1=40,\
+	#	va-,vb-,vampl1+,vcent1-,vfwhm1+,\
+	#	low_rej=3.0,high_rej=3.0,niterat=3,\
+	#	int+,verbose- )
+
+	#tdump ( tmpfile7, cdfile="",columns="coeff5" ) | scanf("%f",fwhm)
+	#sigma = fwhm/2.35482
+	
+	#mag = zmag-2.5*log10(limit*sigma)
+
+	#printf("aperture_diameter = %5.2f pixel\n",ap_diameter)
+	#printf("1sigma= %5.2f counts : %5.2f mag\n",sigma,(zmag-2.5*log10(sigma)) )
+	#printf("%5.2f sigma= %5.2f counts : %5.2f mag\n",limit, limit*sigma, (zmag-2.5*log10(limit*sigma)) )
+
+end
+

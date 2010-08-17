@@ -1,0 +1,46 @@
+#require "./extend.rb"
+require "rake/clean"
+
+NB=3
+NC=4
+ST=0.2
+
+def dojob(t)
+  #sleep ST
+  if defined? Pwrake and Pwrake.manager.gfarm
+    gfwhere="gfwhere #{Pwrake::GfarmSSH.gf_pwd}/#{t.prerequisites[0]};"
+  else
+    gfwhere=""
+  end
+  sh "(pwd; #{gfwhere} hostname) > #{t.name}"
+  puts "#{t.name} => #{t.prerequisites.join(' ')}"
+end
+
+CLEAN.include "*.tmp"
+
+file "f.tmp" do |t|
+  dojob t
+end
+
+file "d.tmp" => "f.tmp" do |t|
+  dojob t
+end
+
+B = (1..NB).map do |i|
+  c = (1..NC).map do |j|
+    file "c#{i}_#{j}.tmp" => "d.tmp" do |t|
+      dojob t
+    end.name
+  end
+
+  file "b#{i}.tmp" => c do |t|
+    dojob t
+  end.name
+end
+
+file "a.tmp" => B do |t|
+  dojob t
+end
+
+
+task :default => "a.tmp"

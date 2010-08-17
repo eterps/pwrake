@@ -1,0 +1,79 @@
+#! @CSHELL@ -f
+#------------------------------------------------------
+#This is a csh script for subtracting sky 
+#------------------------------------------------------
+#
+#       Created by Kazuhiro Shimasaku
+#               April 4, 2002
+#       Revised by Masami Ouchi
+#		May 1 2002 
+#       Revised by Masami Ouchi
+#		May 22 2002 
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# mask_AGX.lis : list of images whose AG shadow is masked
+# mask_for_AGX* : program for masking a spacified area
+#
+
+#parameters
+# blank_value : blank value of image (Suprime-Cam = -32768)
+
+set nonomatch
+
+# get the name of mask_AGX.lis file
+
+if ( $#argv != 1 ) then
+    echo "Usage:" $0 " [mask_AGX.lis]"
+    exit 1
+endif
+
+
+if ( !(-r $1) ) then
+    echo $0 " : Cannot open "$1": No such file or directory."
+    exit 1
+endif
+
+set maskagxlist = $1
+set blank = -32768
+set AWK = @AWK@
+
+set SDFREDSH = @SDFREDSH@
+
+#blank the shadow of the AG probe
+
+# version 1.2 
+## foreach image (`cat $maskagxlist`)
+set list = $maskagxlist
+set nmax = `wc -l $list | awk '{print $1}'`
+@ n = 1
+while ( $n <= $nmax )
+set image = `sed -n "$n"p $list`
+
+# version 1.2 
+  set AGX = `getkey S_AG-X ${image}`
+
+    set j_limit = 5000
+    if( `echo ${image} | $AWK '{if ($1~/si006s/ || $1~/si002s/ || $1~/w6c1/) {print 1} else {print 0}}'`) then
+	set j_limit = `echo ${AGX} | $AWK '{print 60*$1 - 2300}'`
+    endif
+    if( `echo ${image} | $AWK '{if ($1~/w67c1/ || $1~/w7c3/ ) {print 1} else {print 0}}'`) then
+    	set j_limit = `echo ${AGX} | $AWK '{print 60*$1 - 2000}'`
+    endif
+
+# shimasku note 5/17, 2002
+#(1) si006s, si002s, w6c1
+#  mask the region :   j > 60*AGX - 2300
+#
+#(2) w67c1, w7c3
+#  mask the region :   j > 60*AGX - 2000 
+
+    echo mask_for_AGX ${image} A${image} ${j_limit} ${blank}
+    mask_for_AGX ${image} A${image} ${j_limit} ${blank}
+
+@ n ++
+end
+

@@ -1,0 +1,96 @@
+#! @CSHELL@ -f
+#csh script for making a mos file for imcio
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               September 5, 2000
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# makemos.lis : list of input images from which a mos file is created 
+# starsel2* : program for selecting stellar ofjects in an input image
+# shotmatch7a.sh* : program for matching positions and fluxes described in .mes files
+#
+
+#parameters
+
+#outmos : output mos-file name
+
+#aquire a name of a list and a name of output image 
+
+if ( $#argv != 7 ) then
+    echo "Usage:" $0 " [makemos.lis] [starsel nskysigma(5)] [starsel npix(20)] [starsel peakmin(500)] [starsel peakmax(10000)] [aperture phot radius in pix(5)] [output mos-file name (all.mos)]" 
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo $0 " : Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set makemoslist = $1
+set nskysigma = $2
+set npix = $3
+set peakmin = $4
+set peakmax = $5
+set apphotrad = $6
+set outmos = $7
+
+# set SDFREDSH = @SDFREDSH@
+# set AWK = @AWK@
+
+#echo
+
+echo "starsel parameters"
+echo "nskysigma="${nskysigma} " npix="${npix} " peakmin="${peakmin} " peakmax="${peakmax} " -aprad="${apphotrad}
+
+# select stellar objects
+
+rm shotmatch.lis
+
+# version 1.2 
+## set n = 0
+
+# version 1.2
+## foreach image (`cat ${makemoslist}`)
+set list = ${makemoslist}
+set nmax = `wc -l $list | awk '{print $1}'`
+@ n = 1
+while ( $n <= $nmax )
+set image = `sed -n "$n"p $list`
+
+    starsel2 -nskysigma=${nskysigma} -npix=${npix} -aratiomin=0.4 -peakmin=${peakmin} -peakmax=${peakmax} -aprad=${apphotrad} -outmes=${image}.mes ${image}
+    echo -n ${image}.mes >> shotmatch.lis
+    echo -n " " >> shotmatch.lis
+
+# version 1.2 
+## @ n = ${n} + 1
+@ n++
+end
+
+#determine a relative position of images
+#echo shotmatch5imp.sh 30 `cat shotmatch.lis`
+#shotmatch5imp.sh 30 `cat shotmatch.lis` > log_shotmatch
+
+#echo /home/ouchi/bin/neko110700/bin/shotmatch5.sh 30 `cat shotmatch.lis`
+#/home/ouchi/bin/neko110700/bin/shotmatch5.sh 30 `cat shotmatch.lis` > log_shotmatch
+
+#echo shotmatch5.sh 35 `cat shotmatch.lis`
+#shotmatch5.sh 35 `cat shotmatch.lis` > log_shotmatch
+echo shotmatch7a.sh 30 `cat shotmatch.lis`
+shotmatch7a.sh 30 `cat shotmatch.lis` > log_shotmatch
+
+#cp test.dat `basename ${outmos} .mos`.dat
+#
+#tail -${n} log_shotmatch | sed s/mes/fits/ > ${outmos}
+
+mv out.mos ${outmos}
+echo "done\!"
+
+#message for matching
+echo "If "${outmos}" is reasonable, run imcio2a"
+#echo "example> imcio2 -dist_med -dtype=FITSFLOAT -ignor=-32768 "${outmos}" "`basename ${outmos} .mos`".fits"
+echo "example> imcio2a -dist_clip -nline=20 -dtype=FITSFLOAT -ignor=-32768 "${outmos}" "`basename ${outmos} .mos`".fits"

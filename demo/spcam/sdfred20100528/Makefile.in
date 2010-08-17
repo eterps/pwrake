@@ -1,0 +1,20 @@
+@SET_MAKE@
+SUBDIRS=mosaic sdfred sdfredSH clscripts
+
+all: 
+	(cd mosaic ; $(MAKE) all)
+	(cd sdfred; $(MAKE) clean ; $(MAKE) all) 
+	(cd bin ; rm -f * )
+	(cd bin ; ln -s `find ../sdfred -type f -a -perm -555` . )
+	(cd bin ; ln -s `find ../sdfredSH -type f -a -name \*.csh` . ;  chmod 555 *.csh)
+	(cd mosaic ; $(MAKE) install)
+
+clean:
+	for dir in $(SUBDIRS) ; do (cd $$dir; $(MAKE) clean) ; done
+
+distclean: clean
+	rm -f *~ *.o config.cache config.log config.status
+	for dir in $(SUBDIRS) ; do if [ -f $$dir/Makefile.in -a -f $$dir/Makefile ] ;  then  (echo $$dir':'; cd $$dir; $(MAKE) distclean); rm -f $$dir/Makefile ; fi ; done
+	if [ -d bin/ ] ; then rm -f bin/* ; fi
+	rm -f ./Makefile 
+

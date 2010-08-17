@@ -1,0 +1,76 @@
+INSTALL(mini)
+
+Sorry this document is written in Japanese for Japanese and Japanese reader
+by Japanese.
+
+インストール (2004/06/08 updated)
+
+無保証です。
+
+以下、シェルは bash を仮定して書いてます。
+csh/tcsh の人は export 云々を setenv 云々に読み変えるか
+これを機会に sh/bash 系に移行される事をお勧めします。
+
+０）最新のコードを持っていく
+    特に近況は良く読んで下さい。
+    まだあなたの知らないバグがあなたの持っているコードに
+    潜んでいるかもしれません故。
+
+１）適当なディレクトリで展開する。
+    mosaic/ というディレクトリが出来ます。
+    勝手に名前変えて構いませんが、変えるのは configure の前にしましょう。
+
+２）% configure 
+    .../mosaic/ の中で実行しましょう。
+    デフォルトでは --prefix=`pwd` になります。
+    ${prefix}/bin にバイナリはインストールされます。
+
+    また、環境変数 CFLAGS を
+     ANSI+POSIX が通るように適切に設定しておきましょう。
+     ＃ M_PI とか使ってたりするのです。
+     一応 Linux, OSF/1, IRIX, Solaris, HP/UX では
+     configure のデフォルト設定で大丈夫だとは思います（ソースいじったし）
+     私は趣味で -std1 (OSF/1) とか -Wall (gcc) とか付けたりします。
+
+    それから、gcc があり、かつ make のデフォルトの $(CC) が cc になり、
+    リンク時に cc -g2 -O2 でエラーになる Solaris の cc の如き物を使う方は、
+    configure の前に export CC=cc としておくか（この場合 cc でコンパイル）
+    コンパイルの際に export CC=gcc として下さい（この場合 gcc でコンパイル）。
+        
+３）% make all
+    作ります。.../mosaic/ の中で実行しましょう。
+
+    なお、どこかのディレクトリのみコンパイルする場合は
+    make imc のようにディレクトリ名指定でできます。
+    この場合自動補完してくれる最後のスラッシュを付けてはいけません。
+
+    そのディレクトリへ行って直接 make する場合には
+    環境変数 IMC, MOSLIB, DETECT, MOSINC, などを適切に設定する必要があります。
+    例） % export IMC=../imc
+         % export MOSLIB=../lib
+         % export MOSINC=../include
+    この相対パスは、子ディレクトリから見たパスになってるのがミソです。
+
+４）% make install
+    設定したバイナリ用ディレクトリにコピーされます。
+    通常は .../mosaic/bin に書き込むので root になる必要はありません。
+    そのディレクトリに書き込み権限があるユーザで行ないましょう。
+
+    なお、スクリプトの上書きで警告が出るバグが残ってますが、
+    これは近未来に修正されるでしょう。
+
+    一部だけインストールしたい場合、SUBDIRS を設定します。
+        % make install SUBDIRS="imc util tool"
+    
+５）make clean で *.o 等は消えます。
+    make distclean でソースとデータを残して
+    かなりきれいさっぱり状態になります（配布状態）
+    Makefile も消えるので configure からやり直しましょう。
+
+2000/11/01 (JST) document written by Yagi. 
+2001/03/03 (JST) updated by Yagi.
+2004/01/28 (JST) replaced by Yagi.
+2004/05/04 (JST) updated by Yagi.
+2004/06/08 (JST) updated by Yagi.
+yagi@optik.mtk.nao.ac.jp
+

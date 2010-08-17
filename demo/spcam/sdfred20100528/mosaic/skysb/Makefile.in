@@ -1,0 +1,42 @@
+SHELL = /bin/sh
+
+@SET_MAKE@
+@SET_GCC@
+CFLAGS= @CFLAGS@
+LIBIMC= $(IMC)/libimc.a 
+#MOSBIN @exec_prefix@/bin
+LIBARGS=$(MOSLIB)/getargs.o
+LIBUTIL=$(MOSLIB)/oyamin2b.o 
+LIBS=skysb_sub.o $(LIBARGS) $(LIBUTIL) $(LIBIMC) @LIBS@
+BINARIES=skysb3b skydet3b
+
+binaries: $(BINARIES)
+
+skysb3b : skysb3b.o skysb_sub.o $(LIBUTIL) $(LIBIMC) $(LIBARGS) 
+	$(CC) $(CFLAGS) -o $@ $@.o $(LIBS) 
+
+skydet3b : skydet3b.o skysb_sub.o $(LIBUTIL) $(LIBIMC) $(LIBARGS)
+	$(CC) $(CFLAGS) -o $@ $@.o $(LIBS) 
+
+$(LIBIMC): 
+	(cd $(IMC); $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+$(LIBUTIL): 
+	(cd ../libsrc; $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+$(LIBARGS):
+	(cd ../getarg; $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+clean:
+	rm -f *.o *~
+
+distclean: clean
+	rm -f $(BINARIES)
+
+install: $(BINARIES) 
+	cp $(BINARIES) $(MOSBIN)
+
+all : $(BINARIES) clean install

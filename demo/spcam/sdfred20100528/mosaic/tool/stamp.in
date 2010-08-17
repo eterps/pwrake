@@ -1,0 +1,36 @@
+#! @SHELL@
+
+infile=$1
+
+if [ $# -lt 3 ]
+then
+echo "Usage:stamp infile [outfile] x y [area]"
+echo '  (default outfile="stamp.fits" area=20)'
+exit
+fi
+
+if [ -n "`echo $2|sed 's/[-0-9\.\n]//g'`" ]
+then
+outfile=$2
+shift
+else
+outfile="stamp.fits"
+fi
+
+x=$2
+y=$3
+if [ $# -ge 4 ] 
+then
+area=$4
+else
+area=20
+fi
+
+xmin=`echo $x - $area  | bc | sed 's/\..*//'`
+xmax=`echo $x + $area  | bc | sed 's/\..*//'`
+ymin=`echo $y - $area  | bc | sed 's/\..*//'`
+ymax=`echo $y + $area  | bc | sed 's/\..*//'`
+
+echo imcio2a $infile $outfile -dtype=FITSFLOAT -xmin=$xmin -xmax=$xmax -ymin=$ymin -ymax=$ymax 
+
+imcio2a $infile $outfile -dtype=FITSFLOAT -xmin=$xmin -xmax=$xmax -ymin=$ymin -ymax=$ymax >  /dev/null

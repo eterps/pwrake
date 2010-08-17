@@ -1,0 +1,57 @@
+SHELL = /bin/sh
+
+@SET_MAKE@
+@SET_GCC@
+CFLAGS= @CFLAGS@ @LARGEFILE@
+LIBIMC= $(IMC)/libimc.a 
+#MOSBIN @exec_prefix@/bin
+LIBFLOOD = $(MOSLIB)/paint_sub.o
+LIBS= $(LIBIMC) $(LIBARGS) @LIBS@
+LIBARGS = $(MOSLIB)/getargs.o
+PROGS = uppercut total arithimg medianimg2 normmed iso2 getkey
+
+binaries: $(PROGS)
+
+uppercut: uppercut.o $(LIBIMC)
+	$(CC) $(CFLAGS) -o $@  uppercut.o $(LIBS)
+
+total: total.o $(LIBIMC)
+	$(CC) $(CFLAGS) -o $@  total.o $(LIBS)
+
+arithimg: arithimg.o $(LIBIMC)
+	$(CC) $(CFLAGS) -o $@  arithimg.o $(LIBS)
+
+medianimg2: medianimg2.o $(LIBIMC)
+	$(CC) $(CFLAGS) -o $@ medianimg2.o $(LIBS)
+
+normmed: normmed.o $(LIBIMC)
+	$(CC) $(CFLAGS) -o $@ normmed.o $(LIBS)
+
+iso2 : iso2.o $(LIBIMC) $(LIBFLOOD) 
+	$(CC) $(CFLAGS) -o $@ iso2.o $(LIBFLOOD) $(LIBS)
+
+getkey : getkey.o 
+	$(CC) $(CFLAGS) -o getkey getkey.o 
+
+$(LIBIMC): 
+	(cd $(IMC); $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+$(LIBFLOOD):
+	(cd ../libsrc; $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+$(LIBARGS):
+	(cd ../getarg; $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+clean: 
+	rm -f *~ *.o 
+
+distclean: clean
+	rm -f $(PROGS)
+
+install: $(PROGS)
+	cp $(PROGS) $(MOSBIN)
+
+all : $(PROGS) clean install

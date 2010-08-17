@@ -1,0 +1,64 @@
+#! /bin/csh -f
+#------------------------------------------------------
+#This is a csh script for subtracting bias frames
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               July 6, 1999
+#       Revised by Masami Ouchi
+#               March 3, 2000
+#       Revised by Masami Ouchi
+#               July 3, 2000
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# biassub_im.lis : list of input images to be subtracted bias frames
+# biassub_mb.lis : list of median bias frames
+# imarith*: program for excuting 4 arithmetics  
+#
+
+#parameters
+
+#aquire a name of a list and a name of output image 
+
+if ( $#argv != 2 ) then
+    echo "Usage:" $0 " [biassub_im.lis] [biassub_mb.lis]" 
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo $0 " : Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+if ( !(-r $2) ) then
+    echo $0 " : Cannot open "$2": No such file or directory"
+    exit 1
+endif
+
+set listim = $1
+set listmb = $2
+
+## subtract median bias frames
+foreach chip ( si001s si002s si005s si006s w67c1 w6c1 w93c2 w9c2 )
+    set mbias = ( `awk '$1~/('$chip')+/ {print $1}' $listmb | head -1 ` )
+    foreach image ( `awk '$1~/('$chip')+/ {print $1}' $listim`)
+	echo imarith $image - $mbias b$image
+	imarith $image - $mbias b$image
+    end
+end
+
+#awk '$4 ~/(si001s)+/ {print $4}' SupcamRed_tmp1.lis > SupcamRed_tmp9.lis
+#awk 'BEGIN {FS="."} {print "imarith "$1".fits - ../summit990519/mbias_si001s_ssb.fits "$1"_sb.fits"}' SupcamRed_tmp9.lis > SupcamRed_tmp10
+#csh -f SupcamRed_tmp10
+
+
+
+
+
+
+
+

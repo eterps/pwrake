@@ -1,0 +1,384 @@
+#! @CSHELL@ -f
+#------------------------------------------------------
+#This is a program for pipeline reduction of a suprime image 
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               May 23, 2002
+#       Revised by Masami Ouchi
+#		July 5, 2004
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# distcorr.lis : list of images to be distortion-corrected
+# @AWK@ * : GNU awk
+#
+
+set AWK = @AWK@
+
+#parameters
+
+#aquire parameters and names of lists 
+
+if ( $#argv != 7 ) then
+    echo "Usage:" $0 " [object.lis] [standard.lis] [mkflat.lis] [saturation(32500)] [typical sky level(18000)] [targetPSFFWHM(4.0)] [beginning step(all)]"
+    echo "beginning step = ( all mkflat ffield distcorr fwhmpsf psfmatch skysb maskAGX makemos imcio )"
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "spcamred.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+if ( !(-r $2) ) then
+    echo "spcamred.csh: Cannot open "$2": No such file or directory"
+    exit 1
+endif
+if ( !(-r $3) ) then
+    echo "spcamred.csh: Cannot open "$3": No such file or directory"
+    exit 1
+endif
+
+set objectlis = $1
+set standardlis = $2
+set mkflatlis = $3
+set saturation = $4
+set skylevel = $5
+set targetpsffwhm = $6
+set beginstep = $7
+
+#choose the beginning process
+foreach process ( all mkflat ffield distcorr psfmatch skysb maskAGX makemos imcio )
+    if ( `echo ${beginstep} ${process} | $AWK '{if ($1==$2) {print 1} else {print 0}}'`) then
+	goto ${process}
+    endif
+end
+
+    echo "spcamred.csh: Cannot find the beginning process : "${beginstep}
+    exit 1
+
+
+
+all: 
+#check if all the images exist
+foreach image (`cat ${objectlis} ${standardlis} ${mkflatlis}`)
+    if ( !(-r ${image}) ) then
+	echo "spcamred.csh: Cannot open "${image}": No such file or directory"
+	exit 1
+    endif
+end
+
+## overscansub (all)
+echo ""
+echo "#"
+echo "##Start overscansub"
+echo "#"
+echo ""
+echo "executing...."
+
+##check if login.cl exsits
+#if ( !(-r login.cl) ) then
+#    echo "spcamred.csh: Cannot find login.cl : overscansub.csh needs login.cl"
+#    echo "execute mkiraf in this directory"
+#    exit 1
+#endif
+
+# make spcamred_overscansub.lis
+rm -f spcamred_overscansub.lis
+rm -f tmp_spcamred_overscansub1
+rm -f tmp_spcamred_overscansub2
+cat ${mkflatlis} ${objectlis} ${standardlis} | sort > tmp_spcamred_overscansub1
+set pre_image = NONIMAGE
+foreach image (`cat tmp_spcamred_overscansub1`)
+    echo ${pre_image} ${image} | $AWK '$1!=$2 {print $2}' >> tmp_spcamred_overscansub2
+    set pre_image = ${image}
+end
+mv -f tmp_spcamred_overscansub2 spcamred_overscansub.lis
+
+# execute the csh program
+echo overscansub.csh spcamred_overscansub.lis
+echo overscansub.csh spcamred_overscansub.lis > log_spcamred_overscansub
+overscansub.csh spcamred_overscansub.lis >> log_spcamred_overscansub
+
+echo ""
+echo "#log_spcamred_overscansub is created,"
+echo "##end overscansub"
+echo "#"
+echo ""
+
+
+mkflat:
+## mkflat
+echo ""
+echo "#"
+echo "##Start mkflat"
+echo "#"
+echo "executing...."
+
+#make spcamred_mkflat.lis
+$AWK '{print "To_R"$1}' ${mkflatlis} > spcamred_mkflat.lis
+
+#execute the csh program
+echo mask_mkflat_HA.csh spcamred_mkflat.lis spcamred 0.5 1.3 
+echo mask_mkflat_HA.csh spcamred_mkflat.lis spcamred 0.5 1.3 > log_spcamred_mkflat
+mask_mkflat_HA.csh spcamred_mkflat.lis spcamred 0.5 1.3 >> log_spcamred_mkflat
+
+echo ""
+echo "#"
+echo "#log_spcamred_mkflat is created,"
+echo "##end mkflat"
+echo "#"
+echo ""
+
+ffield:
+## ffield
+echo ""
+echo "#"
+echo "##Start ffield"
+echo "#"
+echo "executing...."
+
+#make spcamred_ffield_im.lis and spcamred_ffield_mf.lis
+rm -f spcamred_ffield_mf.lis
+rm -f spcamred_ffield_im.lis
+foreach chip ( si001s si002s si005s si006s w67c1 w6c1 w93c2 w9c2 w4c5 w7c3 )
+    echo spcamred_mflat_${chip}.fits >> spcamred_ffield_mf.lis
+end
+$AWK '{print "To_R"$1}' ${objectlis} ${standardlis} > spcamred_ffield_im.lis
+
+#execute the csh program
+echo ffield.csh spcamred_ffield_mf.lis spcamred_ffield_im.lis
+echo ffield.csh spcamred_ffield_mf.lis spcamred_ffield_im.lis > log_spcamred_ffield
+ffield.csh spcamred_ffield_mf.lis spcamred_ffield_im.lis >> log_spcamred_ffield
+
+echo ""
+echo "#"
+echo "#log_spcamred_ffield is created,"
+echo "##end ffield"
+echo "#"
+echo ""
+
+distcorr:
+## distcorr
+echo ""
+echo "#"
+echo "##Start distcorr"
+echo "#"
+echo "executing...."
+
+#make spcamred_distcorr.lis
+rm -f spcamred_distcorr.lis
+$AWK '{print "fTo_R"$1}' ${objectlis} > spcamred_distcorr.lis
+
+#execute the csh program
+echo distcorr.csh spcamred_distcorr.lis
+echo distcorr.csh spcamred_distcorr.lis > log_spcamred_distcorr
+distcorr.csh spcamred_distcorr.lis >> log_spcamred_distcorr
+
+echo ""
+echo "#"
+echo "#log_spcamred_distcorr is created,"
+echo "##end distcorr"
+echo "#"
+echo ""
+
+psfmatch:
+## psfmatch
+echo ""
+echo "#"
+echo "##Start psfmatch"
+echo "#"
+echo "executing...."
+
+#make spcamred_psfmatch.lis
+rm -f spcamred_psfmatch.lis
+$AWK '{print "gfTo_R"$1}' ${objectlis} > spcamred_psfmatch.lis
+
+#calculate the saturation level after sky is subtracted
+set max_number_of_object = 50
+set min_peak_flux = 2000
+set max_peak_flux = `echo ${saturation} ${skylevel} | $AWK '{print $1-$2}'`
+set min_FWHM = 2.3
+set max_FWHM = 6.5
+
+if (`echo ${min_peak_flux} ${max_peak_flux} | $AWK '{if ($2-2000 < $1) {print 1} else {print 0}}'`) then 
+    set min_peak_flux = 500
+    echo "Warning: min_peak_flux is "${min_peak_flux} 
+endif
+
+
+#execute the csh program
+echo psfmatch_batch.csh spcamred_psfmatch.lis ${max_number_of_object} ${min_peak_flux} ${max_peak_flux} ${min_FWHM} ${max_FWHM} ${targetpsffwhm}
+
+echo psfmatch_batch.csh spcamred_psfmatch.lis ${max_number_of_object} ${min_peak_flux} ${max_peak_flux} ${min_FWHM} ${max_FWHM} ${targetpsffwhm} > log_spcamred_psfmatch 
+
+psfmatch_batch.csh spcamred_psfmatch.lis ${max_number_of_object} ${min_peak_flux} ${max_peak_flux} ${min_FWHM} ${max_FWHM} ${targetpsffwhm} >> log_spcamred_psfmatch
+
+echo ""
+echo "#"
+echo "#log_spcamred_psfmatch is created,"
+echo "##end psfmatch"
+echo "#"
+echo ""
+
+
+skysb:
+## skysb
+echo ""
+echo "#"
+echo "##Start skysb"
+echo "#"
+echo "executing...."
+
+#make spcamred_skysb.lis
+rm -f spcamred_skysb.lis
+$AWK '{print "pgfTo_R"$1}' ${objectlis} > spcamred_skysb.lis
+
+#execute the csh program
+echo skysb.csh spcamred_skysb.lis 64
+echo skysb.csh spcamred_skysb.lis 64 > log_spcamred_skysb
+skysb.csh spcamred_skysb.lis 64 >> log_spcamred_skysb
+
+echo ""
+echo "#"
+echo "#log_spcamred_skysb is created,"
+echo "##end skysb"
+echo "#"
+echo ""
+
+
+maskAGX:
+## maskAGX
+echo ""
+echo "#"
+echo "##Start maskAGX"
+echo "#"
+echo "executing...."
+
+#make spcamred_maskAGX.lis
+rm -f spcamred_maskAGX.lis
+$AWK '{print "spgfTo_R"$1}' ${objectlis} > spcamred_maskAGX.lis
+
+#execute the csh program
+echo mask_AGX.csh spcamred_maskAGX.lis
+echo mask_AGX.csh spcamred_maskAGX.lis > log_spcamred_maskAGX
+mask_AGX.csh spcamred_maskAGX.lis >> log_spcamred_maskAGX
+
+echo ""
+echo "#"
+echo "#log_spcamred_maskAGX is created,"
+echo "##end maskAGX"
+echo "#"
+echo ""
+
+#assumemos:
+### assumemos
+#echo ""
+#echo "#"
+#echo "##Start assumemos"
+#echo "#"
+#echo "executing...."
+#
+##make spcamred_assumemos.lis
+#rm -f spcamred_assumemos.lis
+#$AWK '{print "AspgfTo_R"$1}' ${objectlis} > spcamred_assumemos.lis
+#
+##calculate the saturation level after sky is subtracted
+#set starsel_nskysigma = 10
+#set starsel_npix = 15
+#set starsel_peakmin = 500
+#set starsel_peakmax = `echo ${saturation} ${skylevel} | $AWK '{print $1-$2}'`
+#set aperture_phot_radius = 10
+#set standard_chip = si001s
+#
+#
+##execute the csh program
+#echo assumemos.csh spcamred_assumemos.lis ${starsel_nskysigma} ${starsel_npix} ${starsel_peakmin} ${starsel_peakmax} ${aperture_phot_radius} ${standard_chip} spcamred_assume.mos
+#echo assumemos.csh spcamred_assumemos.lis ${starsel_nskysigma} ${starsel_npix} ${starsel_peakmin} ${starsel_peakmax} ${aperture_phot_radius} ${standard_chip} spcamred_assume.mos > log_spcamred_assumemos
+#assumemos.csh spcamred_assumemos.lis ${starsel_nskysigma} ${starsel_npix} ${starsel_peakmin} ${starsel_peakmax} ${aperture_phot_radius} ${standard_chip} spcamred_assume.mos >> log_spcamred_assumemos
+#
+#echo ""
+#echo "#"
+#echo "#log_spcamred_assumemos is created,"
+#echo "##end assumemos"
+#echo "#"
+#echo ""
+
+
+makemos:
+## makemos
+echo ""
+echo "#"
+echo "##Start makemos"
+echo "#"
+echo "executing...."
+
+#make spcamred_makemos.lis
+rm -f spcamred_makemos.lis
+$AWK '{print "AspgfTo_R"$1}' ${objectlis} > spcamred_makemos.lis
+
+#echo "#using spcamred_assume.mos"
+#if ( !(-r spcamred_assume.mos) ) then
+#    echo "spcamred.csh: Cannot open spcamred_assume.mos: No such file or directory"
+#    exit 1
+#endif
+
+#calculate the saturation level after sky is subtracted
+set starsel_nskysigma = 10
+set starsel_npix = 15
+set starsel_peakmin = 500
+set starsel_peakmax = `echo ${saturation} ${skylevel} | $AWK '{print $1-$2}'`
+set aperture_phot_radius = 10
+set standard_chip = si001s
+
+
+
+#makemos.csh makemos.lis 5 20 500 10000 10 all.mos
+#execute the csh program
+echo makemos.csh spcamred_makemos.lis ${starsel_nskysigma} ${starsel_npix} ${starsel_peakmin} ${starsel_peakmax} ${aperture_phot_radius} spcamred_makemos.mos
+echo makemos.csh spcamred_makemos.lis ${starsel_nskysigma} ${starsel_npix} ${starsel_peakmin} ${starsel_peakmax} ${aperture_phot_radius} spcamred_makemos.mos > log_spcamred_makemos
+makemos.csh spcamred_makemos.lis ${starsel_nskysigma} ${starsel_npix} ${starsel_peakmin} ${starsel_peakmax} ${aperture_phot_radius} spcamred_makemos.mos >> log_spcamred_makemos
+
+#echo makemos_adv.csh spcamred_assume.mos ${starsel_nskysigma} ${starsel_npix} ${starsel_peakmin} ${starsel_peakmax} ${aperture_phot_radius} spcamred_makemosadv.mos
+#echo makemos_adv.csh spcamred_assume.mos ${starsel_nskysigma} ${starsel_npix} ${starsel_peakmin} ${starsel_peakmax} ${aperture_phot_radius} spcamred_makemosadv.mos > log_spcamred_makemosadv
+#makemos_adv.csh spcamred_assume.mos ${starsel_nskysigma} ${starsel_npix} ${starsel_peakmin} ${starsel_peakmax} ${aperture_phot_radius} spcamred_makemosadv.mos >> log_spcamred_makemosadv
+
+echo ""
+echo "#"
+echo "#log_spcamred_makemos is created,"
+echo "##end makemos"
+echo "#"
+echo ""
+
+imcio:
+## imcio
+echo ""
+echo "#"
+echo "##Start imcio"
+echo "#"
+echo "executing...."
+
+echo "#using spcamred_makemos.mos"
+if ( !(-r spcamred_makemos.mos) ) then
+    echo "spcamred.csh: Cannot open spcamred_makemos.mos: No such file or directory"
+    exit 1
+endif
+
+#execute the program
+echo imcio2a -dist_clip -nline=20 -dtype=FITSFLOAT -pixignr=-32768 spcamred_makemos.mos spcamred.fits
+echo imcio2a -dist_clip -nline=20 -dtype=FITSFLOAT -pixignr=-32768 spcamred_makemos.mos spcamred.fits > log_spcamred_imcio
+imcio2a -dist_clip -nline=20 -dtype=FITSFLOAT -pixignr=-32768 spcamred_makemos.mos spcamred.fits >> log_spcamred_imcio
+
+echo ""
+echo "#"
+echo "#log_spcamred_imcio is created,"
+echo "##end imcio"
+echo "#"
+echo ""
+echo "done!"
+echo "Reduced image, spcamred.fits, is created"
+echo ""
+

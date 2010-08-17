@@ -1,0 +1,290 @@
+#! @CSHELL@ -f
+#------------------------------------------------------
+#This is a csh script for making flatfield images with masks
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               August 23, 1999
+#       Revised by Masami Ouchi
+#               March 23, 2000
+#       Revised by Masami Ouchi
+#               September 1, 2000
+#	Revised by Masami Ouchi
+#               April 21, 2002
+#       Revised by Masami Ouchi
+#               May 18, 2002
+#       Modified by YAGI
+#               Aug 5, 2005
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# mkflat.lis : list of sky, dome and twilight images 
+# wmediandiv2* : program for creating images divided by their median
+# uppercut* : program for masking pixels
+# mcomb2* : program for creating median-combined images 
+# mask_for_AGX* : program for mask an AG shadow
+# sex* : SExtroctor
+# mask_mkflat.sex : configuration file for SExtractor
+# mask_mkflat.param : parameter file for SExtractor
+#
+
+#parameters
+
+set rejection_sigma = ''
+set number_of_rejection = ''
+
+#aquire a name of a list and a name of output image 
+
+if ( $#argv != 4 ) then
+    echo "Usage:" $0 " [mkflat.lis] [head name (mflat_chipname.fits is automatically appended)] [lower value masking a flat(0.5)] [uppwer value masking a flat(1.3)]"
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "mkflat.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set flatlist = $1
+set head = $2
+set lower = $3
+set upper = $4
+set blank = -32768
+
+set SDFREDSH = @SDFREDSH@
+set AWK = @AWK@
+
+#blank objects
+
+
+## foreach image (`cat $flatlist`)
+
+set list = $flatlist
+# version 1.2 
+set nmax = `wc -l $list | awk '{print $1}'`
+@ n = 1
+while ( $n <= $nmax )
+set image = `sed -n "$n"p $list`
+
+ 
+
+#
+##if (0) then
+#
+	#determine the mesh size for SExtractor
+	set sex_mesh_s = 128
+
+#version 1.2 getkey.pl => getkey
+	set xpix = `getkey NAXIS1 ${image}`
+	set ypix = `getkey NAXIS2 ${image}`
+
+	set x_residual = `echo ${xpix} ${sex_mesh_s} | $AWK '{print $1%$2}'`
+	set y_residual = `echo ${ypix} ${sex_mesh_s} | $AWK '{print $1%$2}'`
+
+	set x_multiple = `echo ${xpix} ${sex_mesh_s} | $AWK '{printf("%d\n",$1/$2)}'`
+	set y_multiple = `echo ${ypix} ${sex_mesh_s} | $AWK '{printf("%d\n",$1/$2)}'`
+
+	#for x_axis
+	#echo ${x_residual} ${x_multiple} ${sex_mesh_s}
+	if (`echo ${x_residual} | $AWK '{if ($1==0) {print 1} else {print 0}}'`) then
+	set x_add = 0
+	    else
+	    if (`echo ${x_residual} ${sex_mesh_s} | $AWK '{if ($1<=$2/2.) {print 1} else {print 0}}'`) then
+		#set x_add = `echo ${x_residual} ${x_multiple} 
+		#| $AWK '{if ($1%$2==0) {printf("%d\n",$1/$2)} else 
+		#{printf("%d\n",$1/$2+1)}}'`
+		set x_add = `echo ${x_residual} ${x_multiple} | $AWK '{printf("%d\n",$1/$2+1)}'`
+	    else
+		#set x_add = `echo ${x_residual} ${x_multiple} ${sex_mesh_s} 
+		#| $AWK '{if (($3-$1)%$2==0) {printf("%d\n",($1-$3)/$2)} else 
+		#{printf("%d\n",($1-$3)/$2+1)}}'`
+		set x_add = `echo ${x_residual} ${x_multiple} ${sex_mesh_s} | $AWK '{printf("%d\n",($1-$3)/$2+1)}'`
+	    endif
+	endif
+	set sex_mesh_x = `echo ${x_add} ${sex_mesh_s} | $AWK '{print $1+$2}'`
+
+
+	#for y_axis
+	#echo ${y_residual} ${y_multiple} ${sex_mesh_s}
+	if (`echo ${y_residual} | $AWK '{if ($1==0) {print 1} else {print 0}}'`) then
+	set y_add = 0
+	    else
+	    if (`echo ${y_residual} ${sex_mesh_s} | $AWK '{if ($1<=$2/2.) {print 1} else {print 0}}'`) then
+		#set y_add = `echo ${y_residual} ${y_multiple} 
+		#| $AWK '{if ($1%$2==0) {printf("%d\n",$1/$2)} else 
+		#{printf("%d\n",$1/$2+1)}}'`
+		set y_add = `echo ${y_residual} ${y_multiple} | $AWK '{printf("%d\n",$1/$2+1)}'`
+	    else
+		#set y_add = `echo ${y_residual} ${y_multiple} ${sex_mesh_s} 
+		#| $AWK '{if (($3-$1)%$2==0) {printf("%d\n",($1-$3)/$2)} else 
+		#{printf("%d\n",($1-$3)/$2+1)}}'`
+		set y_add = `echo ${y_residual} ${y_multiple} ${sex_mesh_s} | $AWK '{printf("%d\n",($1-$3)/$2+1)}'`
+	    endif
+	endif
+	set sex_mesh_y = `echo ${y_add} ${sex_mesh_s} | $AWK '{print $1+$2}'`
+
+
+	#echo $xpix $sex_mesh_x | $AWK '{print $1" "$2"   "$1%$2}' 
+	#echo $ypix $sex_mesh_y | $AWK '{print $1" "$2"   "$1%$2}' 
+
+	echo "#"
+	echo "#SExtractor mesh size"
+	echo "#image[2] x_mesh[3] y_mesh[4] x_residual[5] y_residual[6]  xres_ratio[7] yres_ratio[8]"
+        echo $xpix $sex_mesh_x $ypix $sex_mesh_y $image | $AWK '{printf("#sexmesh %s %d %d %d %d    %.2f %.2f\n",$5,$2,$4,$1%$2,$3%$4,1-($1%$2)/$2,1-($3%$4)/$4)}'
+
+	    #NOTE
+	    #chip  : dx_blank dy_blank
+	    #si001s: 44       14
+	    #si002s: 29       31
+	    #si005s: 30        9
+	    #si006s: 13       30
+	    #w4c5  : 55       30
+	    #w67c1 : 40       46
+	    #w6c1  : 45       25
+	    #w7c3  : 40       43
+	    #w93c2 : 47       30
+	    #w9c2  : 47       25
+
+	sed s/USER_BACK_SIZE/${sex_mesh_x}", "${sex_mesh_y}/ $SDFREDSH/mask_mkflat_HA/mask_mkflat_HA.sex > tmp_mask_mkflat_HA.sex 
+
+#
+##endif
+#
+
+    rm -f check_mask_mkflat.fits
+    #sex ${image} -c $SDFREDSH/mask_mkflat_HA/mask_mkflat_HA.sex
+    sex ${image} -c tmp_mask_mkflat_HA.sex > /dev/null
+    rm -f tmp_hole.fits
+##    uppercut -imin=-10 -imax=0.0 -pixignr=${blank} check_mask_mkflat.fits tmp_hole.fits
+## imarith works well only for blank=-32768
+    uppercut -imin=-10 -imax=0.0 -pixignr=-32768 check_mask_mkflat.fits tmp_hole.fits
+    arithimg ${image} - tmp_hole.fits h${image}
+
+# version 1.2 
+@ n++
+end
+# while
+
+
+#blank the shadow of the AG probe
+
+## foreach image (`cat $flatlist`)
+
+# version 1.2 
+@ n = 1
+while ( $n <= $nmax )
+set image = `sed -n "$n"p $list`
+
+#if (0) then
+
+  #echo -n ${image} >! tmp_imAGX
+  #echo -n "  "   >> tmp_imAGX
+  #echo -n h${image}" " > tmp_imAGX
+  #getkey.pl S_AG-X h${image} >> tmp_imAGX
+# version 1.2 getkey.pl => getkey
+  set AGX = `getkey S_AG-X h${image}`
+
+    set j_limit = 5000
+    if( `echo ${image} | $AWK '{if ($1~/si006s/ || $1~/si002s/ || $1~/w6c1/) {print 1} else {print 0}}'`) then
+	set j_limit = `echo ${AGX} | $AWK '{print 60*$1 - 2300}'`
+    endif
+    if( `echo ${image} | $AWK '{if ($1~/w67c1/ || $1~/w7c3/ ) {print 1} else {print 0}}'`) then
+    	set j_limit = `echo ${AGX} | $AWK '{print 60*$1 - 2000}'`
+    endif
+
+# shimasku note 5/17, 2002
+#(1) si006s, si002s, w6c1
+#  mask the region :   j > 60*AGX - 2300
+#
+#(2) w67c1, w7c3
+#  mask the region :   j > 60*AGX - 2000 
+
+    echo mask_for_AGX h${image}  ah${image}  ${j_limit}  ${blank}
+    mask_for_AGX h${image}  ah${image}  ${j_limit}  ${blank}
+
+  rm h${image}
+
+# version 1.2 (I dislike csh...YAGI)
+  @ n++
+end
+
+#-- end blank shadow
+
+
+#appricable for data taken after 2001 April (for new CCDs)
+#set wmd_col1 = 6
+#set wmd_col2 = 2009
+#set wmd_row1 = 6
+#set wmd_row2_upperCCD = 3400
+#set wmd_row2_lowerCCD = 4085
+
+#appricable for data taken before and after 2001 April (for old and new CCDs)
+set wmd_col1 = 30
+set wmd_col2 = 1850
+set wmd_row1 = 30
+set wmd_row2_upperCCD = 3400
+set wmd_row2_lowerCCD = 4060
+
+
+#make images divided by their median
+
+## foreach image (`cat $flatlist`)
+# version 1.2 
+@ n = 1
+while ( $n <= $nmax )
+set image = `sed -n "$n"p $list`
+
+    if (`echo ${image} | $AWK '{if ($1~/si002s/ || $1~/si006s/ || $1~/w6c1/ || $1~/w67c1/ || $1~/w7c3/) {print 1} else {print 0}}'`) then
+
+	wmediandiv2 ah${image} ${wmd_col1} ${wmd_col2} ${wmd_row1} ${wmd_row2_upperCCD} nah${image}
+
+    else
+
+	wmediandiv2 ah${image} ${wmd_col1} ${wmd_col2} ${wmd_row1} ${wmd_row2_lowerCCD} nah${image}
+
+    endif
+
+    rm ah${image}
+    @ n++
+end
+
+
+## foreach image (`cat $flatlist`)
+# version 1.2 
+@ n = 1
+while ( $n <= $nmax )
+set image = `sed -n "$n"p $list`
+
+#    echo uppercut -imin=${lower} -imax=${upper} -pixignr=${blank} nah$image mnah$image
+#    uppercut -imin=${lower} -imax=${upper} -pixignr=${blank} nah$image mnah$image
+## mcomb2 works well only for blank=-32768
+    echo uppercut -imin=${lower} -imax=${upper} -pixignr=-32768 nah$image mnah$image
+    uppercut -imin=${lower} -imax=${upper} -pixignr=-32768 nah$image mnah$image
+
+    rm nah$image 
+    @ n++
+end
+
+#make median flat images
+rm -f tmp_mask_mkflat_HA1
+$AWK '{print "mnah"$1}' $flatlist > tmp1
+foreach chip ( si001s si002s si005s si006s w67c1 w6c1 w93c2 w9c2 w4c5 w7c3 )
+    $AWK '$1 ~/('$chip')+/ {print $0}' tmp1 > tmp2
+    mcomb2 tmp2 tmp_mkflat_${chip}.fits $rejection_sigma $number_of_rejection
+    echo tmp_mkflat_${chip}.fits >> tmp_mask_mkflat_HA1
+    cp $SDFREDSH/mask_mkflat_HA/blankmap/blankmap_spcamred_mflat_${chip} blankmap_tmp_mkflat_${chip}
+end
+
+blank.csh tmp_mask_mkflat_HA1
+
+foreach chip ( si001s si002s si005s si006s w67c1 w6c1 w93c2 w9c2 w4c5 w7c3 )
+    if ( -r btmp_mkflat_${chip}.fits ) then
+	mv btmp_mkflat_${chip}.fits ${head}_mflat_${chip}.fits
+    endif
+end
+
+
+

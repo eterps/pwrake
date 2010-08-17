@@ -1,0 +1,87 @@
+#! @CSHELL@ -f
+#------------------------------------------------------
+#This is a program for making an artificial FOCAS image from a SPCAM image
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               May 29, 2003
+#
+#------------------------------------------------------
+
+# 
+# necessary files & programs
+#
+# parameter files
+#
+set dbfile =  @SDFREDCL@/SPCAMim2FOCAS/geomatch_focas1_spcam1.db
+set posfile =  @SDFREDCL@/SPCAMim2FOCAS/geomatch_focas1_spcam1.pos
+#
+#  login.cl
+set AWK = @AWK@
+
+#aquire parameters and names of lists 
+
+if ( $#argv != 5 ) then
+    echo "Usage:" $0 " [SPCAMim.fits] [Xcenter] [Ycenter] [PA(-90)] [output.fits]"
+    echo "(1) Xcenter & Ycenter have to leave away from the edge of the image by dx=1050 and dy=1080"
+    echo "(2) PA=-90 means no rotation; If north is up in SPCAMim.fits, enter FOCAS's PA"
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "SPCAMim2FOCASim.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+if ( !(-r ${dbfile} ) ) then
+    echo "SPCAMim2FOCASim.csh: Cannot open "${dbfile}": No such file or directory"
+    exit 1
+endif
+if ( !(-r ${posfile} ) ) then
+    echo "SPCAMim2FOCASim.csh: Cannot open "${posfile}": No such file or directory"
+    exit 1
+endif
+
+set spcamim = $1
+set xcen = $2
+set ycen = $3
+set pa = $4
+set outim = $5
+
+#check if login.cl exsits
+if ( !(-r login.cl) ) then
+    echo "SPCAMim2FOCASim.csh: Cannot find login.cl : overscansub.csh needs login.cl"
+    echo "execute mkiraf in this directory"
+    exit 1
+endif
+
+#cut SPCAMim.fits
+rm -f tmp_SPCAMim2FOCASim1.fits
+# version 1.2
+(echo ; (echo ${xcen} ${ycen} ${spcamim} | $AWK '{printf("imcopy %s[%d:%d,%d:%d] tmp_SPCAMim2FOCASim1.fits \nlogout\n",$3,$1-1050,$1+1050,$2-1080,$2+1080)}' ))| cl
+
+#geotran
+rm -f tmp_SPCAMim2FOCASim2.fits
+# version 1.2
+(echo ; (echo "tmp_SPCAMim2FOCASim1.fits tmp_SPCAMim2FOCASim2.fits "${dbfile} ${posfile} | $AWK '{printf("geotran %s %s %s %s\nlogout\n",$1,$2,$3,$4)}')) | cl
+
+#rotate image
+set rot_angle = `echo ${pa} | $AWK '{print $1-(-90)}'`
+
+rm -f ${outim}
+if (`echo ${rot_angle} | $AWK '$1==0 {print 1}'`) then
+    cp tmp_SPCAMim2FOCASim2.fits ${outim}
+    echo ""
+    echo "##NO ROTATION##"
+else
+# version 1.2
+    (echo ; (echo "tmp_SPCAMim2FOCASim2.fits "${outim} ${rot_angle} | $AWK '{printf("rotate %s %s %f\nlogout\n",$1,$2,$3)}')) | cl
+endif
+
+
+echo ""
+echo ""
+echo "##"${outim}" is created"
+echo ""
+
+#geotran spcam_sdf_f200303-4.fits artim_sdf_f200303-4.fits geomatch_focas1_spcam1.db geomatch_focas1_spcam1.pos

@@ -1,0 +1,50 @@
+SHELL = /bin/sh
+
+@SET_MAKE@
+@SET_GCC@
+CFLAGS= @CFLAGS@
+LIBIMC= $(IMC)/libimc.a 
+#MOSBIN @exec_prefix@/bin
+LIBUTIL= $(MOSLIB)/oyamin2b.o 
+LIBARGS = $(MOSLIB)/getargs.o
+LIBS= $(LIBUTIL) $(LIBIMC) $(LIBARGS) @LIBS@
+
+PROGS = dsmth smth2 smth2_quick convolve
+
+default : $(PROGS)
+
+smth2 : smth2a.o  $(LIBIMC) $(LIBUTIL)
+	$(CC) $(CFLAGS) -o $@ $@a.o $(LIBS)
+
+smth2_quick : smth2_quick.o $(LIBIMC) $(LIBUTIL)
+	$(CC) $(CFLAGS) -o $@ $@.o $(LIBS)
+
+dsmth : dsmth.o $(LIBIMC) $(LIBUTIL)
+	$(CC) $(CFLAGS) -o $@ $@.o $(LIBS)
+
+convolve : convolve.o $(LIBIMC)
+	$(CC) $(CFLAGS) -o $@ $@.o $(LIBS)
+
+$(LIBIMC): 
+	(cd $(IMC); $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+$(LIBUTIL): 
+	(cd ../libsrc; $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+$(LIBARGS):
+	(cd ../getarg; $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+clean :
+	rm -f *.o *~
+
+distclean: clean
+	rm -f $(PROGS)
+
+install : dsmth smth2 smth2_quick
+	cp dsmth smth2 smth2_quick $(MOSBIN)
+
+all : $(PROGS) clean install
+

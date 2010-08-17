@@ -1,0 +1,120 @@
+#! @PERLPATH@
+
+$PI=3.14159265358979;
+
+if (@ARGV<1)
+{
+    print "Usage\: grav2.pl FITS\n";
+    exit(-1);
+}
+
+$FITS=$ARGV[0];
+open(FITS);
+
+$ZD0=-1;
+$ZD1=-1;
+$LST0=-1;
+$LST1=-1;
+
+while(<FITS>)
+{
+    $LINE=$_;
+    if($LINE=~/LST-STR\s*=\s+\'([^\']+)\'/)
+      { 
+	$LST=$1;
+	$LST=~/([0-2][0-9]):([0-9][0-9]):([0-9][0-9]\.[0-9][0-9][0-9])/;
+	$LST=($1+$2/60+$3/3600);
+      }                       #    
+    if ($LINE=~/ZD-STR\s*=\s+([0-9\.\-\+]+)/)
+    {
+	$ZD0=$1;
+    }
+    if ($LINE=~/ZD-END\s*=\s+([0-9\.\-\+]+)/)
+    {
+	$ZD1=$1;
+    }
+    if ($LINE=~/TELESCOP\s*=\s+\'([^\']+)\'/)
+    {
+	$TELESCOP=$1;
+    }
+    if ($LINE=~/RA\s*=\s+\'([^\']+)\'/)
+    {
+	$RA=$1;
+	$RA=~/([0-2][0-9]):([0-9][0-9]):([0-9][0-9]\.[0-9][0-9][0-9])/;
+	$RA=($1+$2/60+$3/3600);
+    }
+    if ($LINE=~/DEC\s*=\s+\'([^\']+)\'/)
+    {
+	$DEC=$1;
+	$DEC=~/([+-])([0-9][0-9]):([0-9][0-9]):([0-9][0-9]\.[0-9][0-9])/;
+	if($1 eq '-') 
+	{
+	    $DEC=-($2+$3/60+$4/3600);
+	}
+	else
+	{
+	    $DEC=($2+$3/60+$4/3600);
+	}
+    }
+    if ($LINE=~/END     /)
+    {
+	last;
+    }
+}
+
+if ($TELESCOP=~/^Subaru/i)
+{
+    $LATI="+19:49:42.600";
+}
+else
+{
+    print " Error\: TELESCOP=\'$TELESCOP\' is unknown\. quit\.\n";
+    exit(-1);
+}
+
+$LATI=~/([+-])([0-9][0-9]):([0-9][0-9]):([0-9][0-9]\.[0-9][0-9][0-9])/;
+if($1 eq '-') 
+{
+    $LATI=-($2+$3/60+$4/3600);
+}
+else
+{
+    $LATI=($2+$3/60+$4/3600);
+}
+
+if ($ZD0>0&&$ZD1>0)
+{
+    $ZD=0.5*($ZD0+$ZD1);
+}
+
+#printf("LAT LST RA ZD AZ DEC\n");
+#printf("%f %f %f %f %f %f\n",$LATI,$LST,$RA,$ZD,$AZ,$DEC);
+
+$a=(90.0-$LATI)*$PI/180.0;
+$b=$ZD*$PI/180.0;
+$c=(90.0-$DEC)*$PI/180.0;
+
+#printf("%f %f %f\n",$a,$b,$c);
+
+if($b==0)
+{
+    print " Error\: Cannot calculate\. ZD=0\.\n";
+    exit(-1);
+}
+if($c==0)
+{
+    print " Error\: Cannot calculate\. Dec=90\.\n";
+    exit(-1);
+}
+
+$COSA=(cos($a)-cos($b)*cos($c))/(sin($b)*sin($c));
+
+#printf("%f\n",$COSA);
+
+$SINA=sqrt(1-$COSA*$COSA);
+
+$E=$RA-$LST+24.0;
+while ($E>12.0) {$E-=24.0}
+if($E>0) {$SINA=-$SINA;}; # object is EAST 
+$A=atan2($SINA,$COSA)/$PI*180;
+printf("%f %f\n",$A,$b);

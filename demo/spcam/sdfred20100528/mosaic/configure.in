@@ -1,0 +1,149 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(00README.neko)
+
+FORCEFITS=-DFORCEFITS
+AC_SUBST(FORCEFITS)
+
+SUBDIRS='$(SUBDIRS1)'
+AC_SUBST(SUBDIRS)
+
+AC_PROG_MAKE_SET 
+
+AC_PREFIX_DEFAULT(`pwd`)
+
+dnl Checks for programs.
+AC_PROG_CC
+
+if test -z "$CC"; then
+	GCC=""
+fi
+	
+AC_PROG_RANLIB
+AC_PROG_MAKE_SET
+AC_PROG_AWK
+
+###
+
+AC_PATH_PROG(SHELL,sh bash ksh)
+AC_SUBST(SHELL)
+
+AC_PATH_PROG(CSHELL,csh tcsh)
+AC_SUBST(CSHELL)
+
+AC_PATH_PROG(PERLPATH,perl)
+AC_SUBST(PERLPATH)
+
+AC_PATH_PROG(NROFFPATH,nroff)
+AC_SUBST(NROFFPATH)
+
+AC_PATH_PROG(NROFFPATH,nroff)
+AC_SUBST(NROFFPATH)
+
+dnl Checks for libraries.
+AC_CHECK_LIB(m, sin)
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS(limits.h)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_TYPE_SIZE_T
+AC_STRUCT_TM
+
+AC_TRY_COMPILE([#include <math.h>],[double p=M_PI;])
+AC_CANONICAL_SYSTEM
+
+AC_CHECK_SIZEOF(int ,4) 
+
+SET_GCC=""
+
+case "$host_os" in
+hpux*)
+    if test -z "$GCC"; then
+      CFLAGS="$CFLAGS -Ae"
+    fi
+    ;;
+sunos*|sol*)
+    if test -n "$GCC" ; then
+      SET_GCC="CC=$CC"
+    fi
+    ;;
+*)
+    :
+    ;;
+esac
+AC_SUBST(SET_GCC)
+
+dnl Checks for library functions.
+AC_CHECK_FUNCS(mktime strstr strtod)
+
+dnl MEMORY SIZE
+
+dnl Checks for endian.
+AC_C_BIGENDIAN
+AC_TRY_COMPILE(,int a=WORDS_BIGENDIAN,,CFLAGS="$CFLAGS -DBYTE_REORDER")
+
+CFLAGS="$CFLAGS "'-I$(IMC) -I$(MOSINC) -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64'
+## CFLAGS="$CFLAGS "'-I$(IMC) -I$(MOSINC)'
+## CFLAGS="-ansi -pedantic -Wall $CFLAGS"
+AC_SUBST(CFLAGS)
+
+AC_CHECK_FUNCS(fseeko, LARGEFILE="-DHAVE_FSEEKO")
+AC_CHECK_SIZEOF(off_t) 
+AC_SUBST(LARGEFILE)
+
+# memory size check
+
+AC_MSG_CHECKING(
+memory size for mosaicking)
+
+if test "$NPXMAX" = "" 
+then
+NPXMAX=12000
+fi
+
+AC_MSG_RESULT(NPXMAX is assumed to be $NPXMAX)
+
+if test "$NFRAMES" = "" 
+then
+NFRAMES=20
+fi
+
+AC_MSG_RESULT(NFRAMES is assumed to be $NFRAMES)
+
+if test "$WIDTH" = "" 
+then
+WIDTH=1000
+fi
+
+AC_MSG_RESULT(WIDTH initial value is $WIDTH)
+YWIDTH=0
+
+while test $WIDTH -gt 50
+do
+AC_TRY_RUN([
+#include<stdlib.h>
+int main(void){
+float *a; 
+a=(float*)malloc(sizeof(float)*$NPXMAX * $NFRAMES * $WIDTH); 
+if(a!=NULL) {free(a); return 0;}
+else return 1;}
+],
+AC_MSG_RESULT(enough memory for $NPXMAX * $NFRAMES * $WIDTH)
+YWIDTH=$WIDTH
+WIDTH=0
+,WIDTH=`expr $WIDTH / 2`)
+done
+
+if test $YWIDTH -le 50
+then
+AC_MSG_ERROR(not enough memory for  $NPXMAX * $NFRAMES * $WIDTH)
+fi
+
+AC_SUBST(YWIDTH)
+
+VERSION=\\\""`ls 2*`\\\""
+AC_SUBST(VERSION)
+
+AC_OUTPUT(imc/Makefile getarg/Makefile libsrc/Makefile osmed/Makefile smth/Makefile skysb/Makefile util/Makefile match/Makefile starsel/Makefile tool/Makefile airmass/Makefile tool/stamp tool/mosrotate.sh airmass/airmass.pl airmass/airmass2.pl airmass/grav2.pl airmass/noairmass.pl airmass/rotate.pl match/shotmatch7.sh match/shotmatch7a.sh Makefile)

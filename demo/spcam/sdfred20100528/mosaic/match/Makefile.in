@@ -1,0 +1,57 @@
+SHELL = /bin/sh
+
+@SET_MAKE@
+@SET_GCC@
+CFLAGS= @CFLAGS@
+LIBIMC= $(IMC)/libimc.a 
+#MOSBIN @exec_prefix@/bin
+LIBUTIL= $(MOSLIB)/solve.o $(MOSLIB)/sub_sortd.o $(MOSLIB)/sub_statd.o \
+	$(MOSLIB)/sub_sort.o $(MOSLIB)/sub_stat.o
+LIBARGS=$(MOSLIB)/getargs.o
+LIBS= $(LIBUTIL) $(LIBARGS) @LIBS@
+LIBS2= $(LIBUTIL) $(LIBARGS) @LIBS@
+PROGS=match_single5 match_stack5 overlap2 estmatch
+AWK=@AWK@
+
+default: $(PROGS) shotmatch7.sh shotmatch7a.sh
+
+match_single5 : match_single5a.o match_sub2.o $(LIBUTIL) $(LIBARGS)
+	$(CC) $(CFLAGS) -o $@ match_single5a.o match_sub2.o $(LIBS)
+
+match_stack5: match_stack5b.o $(LIBUTIL) $(LIBARGS)
+	$(CC) $(CFLAGS) -o $@ match_stack5b.o $(LIBS2) -lm
+
+overlap2: overlap2.o iscross.o $(LIBARGS)
+	$(CC) $(CFLAGS) -o $@ $@.o iscross.o $(LIBARGS) -lm
+
+estmatch: estmatch.o iscross.o $(LIBARGS)
+	$(CC) $(CFLAGS) -o $@ $@.o iscross.o $(LIBARGS) -lm
+
+$(LIBIMC): 
+	(cd $(IMC); $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+$(LIBUTIL): 
+	(cd ../libsrc; $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+$(LIBARGS):
+	(cd ../getarg; $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+clean: 
+	rm -f *.o *~
+
+distclean: clean 
+	rm -f $(PROGS) shotmatch7.sh shotmatch7a.sh 
+
+install: $(PROGS) shotmatch7.sh shotmatch7a.sh
+	cp $(PROGS) $(MOSBIN)
+	cp -f shotmatch5.sh $(MOSBIN)
+	chmod a+x  $(MOSBIN)/shotmatch5.sh
+	cp -f shotmatch7.sh $(MOSBIN)
+	chmod a+x  $(MOSBIN)/shotmatch7.sh
+	cp -f shotmatch7a.sh $(MOSBIN)
+	chmod a+x  $(MOSBIN)/shotmatch7a.sh
+
+all: $(PROGS) clean install

@@ -1,0 +1,22 @@
+SHELL = /bin/sh
+
+@SET_MAKE@
+@SET_GCC@
+AWK=@AWK@
+#MOSBIN @exec_prefix@/bin
+PERLPATH= @PERLPATH@
+VERSION=@VERSION@
+
+SHELLSCRIPTS= stamp mosrotate.sh
+
+default: $(SHELLSCRIPTS)
+
+install: $(SHELLSCRIPTS)
+	cp -p $(SHELLSCRIPTS) $(MOSBIN)/
+
+all : install clean 
+
+clean :
+
+distclean : clean
+	rm -f $(SHELLSCRIPTS)

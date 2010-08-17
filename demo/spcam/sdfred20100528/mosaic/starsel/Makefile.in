@@ -1,0 +1,46 @@
+SHELL = /bin/sh
+
+@SET_MAKE@
+@SET_GCC@
+CFLAGS= @CFLAGS@ -I$(DETECT) -I$(IMC) -I$(MOSINC)
+LIBIMC= $(IMC)/libimc.a 
+#MOSBIN @exec_prefix@/bin
+LIBUTIL=$(MOSLIB)/lsf.o 
+LIBARGS = $(MOSLIB)/getargs.o $(MOSLIB)/paint_sub.o
+LIBDETECT= detect_sub3.o imopr.o moment2d.o
+
+LIBS= $(LIBDETECT) $(LIBIMC) $(LIBUTIL) $(LIBARGS) @LIBS@
+PROGS=starsel3 starsel2
+
+binaries: $(PROGS)
+
+starsel2 : starsel2.o apphot_sub.o $(LIBDETECT) $(LIBIMC) $(LIBUTIL) $(LIBARGS)
+	$(CC) $(CFLAGS) -o $@ $@.o apphot_sub.o $(LIBS)
+ 
+starsel3 : starsel3.o apphot_sub.o $(LIBDETECT) $(LIBIMC) $(LIBUTIL) $(LIBARGS)
+	$(CC) $(CFLAGS) -o $@ $@.o apphot_sub.o $(LIBS)
+
+$(LIBIMC): 
+	(cd $(IMC); $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+$(LIBUTIL): 
+	(cd ../libsrc; $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+$(LIBARGS):
+	(cd ../getarg; $(MAKE) IMC=$(IMC) MOSINC=$(MOSINC) \
+	 MOSLIB=$(MOSLIB) MOSBIN=$(MOSBIN))
+
+install: $(PROGS)
+	cp $(PROGS) $(MOSBIN)/
+
+# shells to be written
+
+clean: 
+	rm -f *.o *~
+
+distclean: clean
+	rm -f $(PROGS)
+
+all: $(PROGS) clean install

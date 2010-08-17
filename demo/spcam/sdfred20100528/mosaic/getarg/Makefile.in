@@ -1,0 +1,23 @@
+SHELL = /bin/sh
+
+@SET_MAKE@
+@SET_GCC@
+CFLAGS= @CFLAGS@ -DVERSION_STRING="@VERSION@"
+
+LIBS = getargs.o 
+INCS = getargs.h
+
+all: install
+
+install: $(LIBS) $(INCS)
+	cp -pf $(INCS) $(MOSINC)/
+	cp -pf $(LIBS) $(MOSLIB)/
+
+getargs.o: getargs.c
+
+install:
+
+clean :	
+	rm -f *.o *~
+
+distclean: clean

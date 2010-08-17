@@ -1,0 +1,48 @@
+#! /bin/csh -f
+#------------------------------------------------------
+#This is a csh script for correcting the distortion of images 
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               September 2, 2000
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# distcorr.lis : list of images to be distortion-corrected
+# gawk* : GNU awk
+# getkey2.pl* : perl script for getting header keywords
+# distcorr3* : program for correcting the distortion of images  
+#
+
+#parameters
+
+#aquire names of lists
+
+if ( $#argv != 1 ) then
+    echo "Usage:" $0 " [distcorr.lis]" 
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "distcorr.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set distcorrlist = $1
+
+foreach image (`cat $distcorrlist`)
+    set x = `getkey2.pl CRPIX1 $image | gawk '{print -$1}'`
+    set y = `getkey2.pl CRPIX2 $image | gawk '{print -$1}'`
+    echo distcorr3 -x=${x} -y=${y} -quickmode ${image} g${image} 
+    distcorr3 -x=${x} -y=${y} -quickmode ${image} g${image} 
+end
+
+
+
+
+
+
+

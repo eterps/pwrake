@@ -1,0 +1,86 @@
+#! @CSHELL@ -f
+#------------------------------------------------------
+#This is a csh script for performing a first reduction 
+#of images taken by Suprime-Cam
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               July 6, 1999
+#       Revised by Masami Ouchi
+#               March 14, 2000
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# overscansub.lis : list of input images to be subtracted their overscan 
+# overscansub.awk : awk script which indicates collums of overscan region
+# osmed4 : program for subtracting the median overscan region and trim it out
+## scansub* : program for subtracting the median overscan region
+
+#parameters
+
+set SDFREDSH = @SDFREDSH@
+#set awkscript = $SDFREDSH/overscansub/overscansub.awk
+#set AWK = @AWK@
+
+#aquire a name of a list and a name of output image 
+
+if ( $#argv != 1 ) then
+    echo "Usage:" $0 " [overscansub.lis]" 
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "overscansub.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+#if ( !(-r $awkscript) ) then
+#    echo "overscansub.csh: Cannot open overscansub.awk : No such file or directory"
+#    exit 1
+#endif
+
+set list = $1
+
+#rm tmp_lis
+#rm tmp_short2real.cl
+
+# version 1.2
+## foreach image (`cat ${list}`)
+set nmax = `wc -l $list | awk '{print $1}'`
+@ n = 1
+while ( $n <= $nmax )
+set image = `sed -n "$n"p $list`
+
+    #printf "del R${image} \n" >> tmp_short2real.cl
+    #printf "imarith ${image} * 1.0 R${image} \n" >> tmp_short2real.cl
+    #printf "imarith ${image} * 1.0 R${image} \nlogout\n" | cl
+    #echo R${image} >> tmp_lis
+##    printf "del R${image} \n imarith ${image} * 1.0 R${image} \nlogout\n" | cl
+##    osmed4 R${image} To_R${image} 
+##    rm R${image}
+## YAGI revised
+    osmed4 -dtype=FITSFLOAT -bzero=0 -bscale=1 -pixignr=-32768 ${image} To_R${image} 
+@ n++
+end
+
+#printf " @IRAFPATH@ < tmp_short2real.cl \nlogout\n" | cl
+
+## excute an overscan subtraction
+#$AWK -f $awkscript tmp_lis > tmp1
+#$AWK '{print "scansub " $0}' tmp1 > tmp2
+#csh -f tmp2
+#
+#foreach image (`cat ${list}`)
+#    osmed4 R${image} To_${image} 
+#    rm R${image}
+#end
+
+
+
+
+
+
+

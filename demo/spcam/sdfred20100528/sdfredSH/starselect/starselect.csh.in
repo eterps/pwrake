@@ -1,0 +1,45 @@
+#! @CSHELL@ -f
+
+if ( $#argv != 7 ) then
+    echo "Usage:" $0 " [image name] [max number of objects(50)] [min peak flux(2000)] [max peak flux(30000)] [min FWHM(2.3)] [max FWHM(6.5)] [output file(dso/reg file)]" 
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "starselect.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set image = $1
+set number_of_obj = $2
+set min_flux=$3
+set max_flux=$4
+set min_fwhm=$5
+set max_fwhm=$6
+set output = $7
+
+set AWK = @AWK@
+set SDFREDSH=@SDFREDSH@
+
+sex ${image} -c $SDFREDSH/starselect/starselect.sex > /dev/null
+
+$AWK '{print $0}' seeing.cat | sort -k 7n > tmp1
+$AWK '$4>0 && $8>'${min_flux}' && $8<'${max_flux}' && $7>'${min_fwhm}' && $7<'${max_fwhm}' {print $0}' tmp1 | head -${number_of_obj} > starselectout_`basename ${image} .fits`.lis
+
+$AWK '{print "CIRCLE( "$2" "$3" 30)"}' starselectout_`basename ${image} .fits`.lis > ${output}
+
+switch ("${output}")
+case "*.reg":
+## ds9 REGION  format
+  echo image > ${output}
+  $AWK '{print "IMAGE; CIRCLE( "$2" "$3" 30)"}' starselectout_`basename ${image} .fits`.lis >> ${output}
+breaksw 
+case "*.dso":
+  ## DSO format
+  $AWK '{print "CIRCLE( "$2" "$3" 30)"}' starselectout_`basename ${image} .fits`.lis > ${output}
+breaksw
+default:
+  echo Warning: output is written in saoimage format
+  ## DSO format
+  $AWK '{print "IMAGE; CIRCLE( "$2" "$3" 30)"}' starselectout_`basename ${image} .fits`.lis >> ${output}
+endsw

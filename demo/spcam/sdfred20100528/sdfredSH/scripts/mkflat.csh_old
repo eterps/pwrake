@@ -1,0 +1,58 @@
+#! /bin/csh -f
+#------------------------------------------------------
+#This is a csh script for making flatfield images 
+#------------------------------------------------------
+#
+#       Created by Masami Ouchi
+#               August 23, 1999
+#       Revised by Masami Ouchi
+#               March 23, 2000
+#
+#------------------------------------------------------
+
+#
+# necessary files & programs
+#
+# mkflat.lis : list of sky, dome and twilight images 
+# wmediandiv* : program for creating images divided by their median
+# mcomb* : program for creating median-combined images 
+#
+
+#parameters
+
+set rejection_sigma = ''
+set number_of_rejection = ''
+
+
+#aquire a name of a list and a name of output image 
+
+if ( $#argv != 2 ) then
+    echo "Usage:" $0 " [mkflat.lis] [head name (mflat_chipname.fits is automatically appended)] " 
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "mkflat.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set flatlist = $1
+set head = $2
+
+#make images divided by their median
+foreach image (`cat $flatlist`)
+    wmediandiv $image n$image
+end
+
+#make median flat images
+awk '{print "n"$1}' $flatlist > tmp1
+foreach chip ( si001s si002s si005s si006s w67c1 w6c1 w93c2 w9c2 )
+    awk '$1 ~/('$chip')+/ {print $0}' tmp1 > tmp2
+    mcomb tmp2 $head'_mflat_'$chip'.fits' $rejection_sigma $number_of_rejection
+end
+
+
+
+
+
+

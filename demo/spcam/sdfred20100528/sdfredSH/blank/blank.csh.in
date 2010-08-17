@@ -1,0 +1,58 @@
+#! @CSHELL@ -f
+
+set AWK = @AWK@
+
+#aquire names of blanklist
+
+if ( $#argv != 1 && $#argv != 2 ) then
+    echo "Usage:" $0 " [blank.lis]"
+    echo "NOTE: ./blankmap_fitsfilenode for each image is used."
+    echo "or " $0 " [blank.lis] [blankmap dir]"
+    exit 1
+endif
+
+if ( !(-r $1) ) then
+    echo "blank.csh: Cannot open "$1": No such file or directory"
+    exit 1
+endif
+
+set blanklist = $1
+
+if ( $#argv == 1 ) then
+    set blankmap_dir = .
+endif
+if ( $#argv == 2 ) then
+    if ( !(-r $2) ) then
+	echo "blank.csh: Cannot open "$2": No such file or directory"
+	exit 1
+    endif
+    set blankmap_dir = $2
+endif
+
+
+foreach file ( `cat ${blanklist}` )
+    rm -f b${file}
+end
+
+$AWK 'BEGIN {FS="."} {print $1}' ${blanklist} > tmp1
+
+foreach node ( `cat tmp1`)
+    set blankmap = ${blankmap_dir}/blankmap_${node}
+
+    if( !(-r ${blankmap}) ) then
+	echo "blank.csh: Cannot find "${blankmap}": No such file or directory"
+    endif
+
+    if( (-r ${blankmap}) ) then
+		echo blank2 ${node}.fits ${blankmap} 60000 -32768 b${node}.fits
+		blank2 ${node}.fits ${blankmap} 60000 -32768 b${node}.fits
+    endif
+end
+
+foreach file (`cat ${blanklist}`)
+    if( !(-r b${file} ) ) then
+	echo cp ${file} b${file}
+	cp ${file} b${file}
+    endif
+end
+
