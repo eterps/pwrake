@@ -3,6 +3,9 @@ Pwrake workflow demo : Subaru SprimeCam
   Subaru Data Reduction website : 
     http://subarutelescope.org/Observing/DataReduction/index.html
 
+ * Reference:
+   - Yagi et al., 2002, AJ, 123, 66
+   - Ouchi et al., 2004, ApJ, 611, 660 
 
 1. Compile SExtractor
 
@@ -20,6 +23,7 @@ Pwrake workflow demo : Subaru SprimeCam
  $ cd ..
 
 3. Download SprimeCam sample image data
+   (not included in this package)
 
  $ wget http://www.naoj.org/Observing/DataReduction/mtk/subaru_red/SPCAM/data/spcam_training_data.tar.gz
  $ tar xvzf spcam_training_data.tar.gz

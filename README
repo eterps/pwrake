@@ -14,5 +14,6 @@ Pwrake - Parallel Workflow extension for Rake
 
  - See demo directories:
 
-  demo/montage : Montage workflow
-
+  demo/hierarchy : Dummy hierarchy workflow
+  demo/montage   : Montage workflow
+  demo/spcam	 : Subaru SprimeCam Data Reduction
