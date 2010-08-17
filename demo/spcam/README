@@ -1,0 +1,52 @@
+Pwrake workflow demo : Subaru SprimeCam
+
+  Subaru Data Reduction website : 
+    http://subarutelescope.org/Observing/DataReduction/index.html
+
+
+1. Compile SExtractor
+
+ $ tar xzf sextractor-2.5.0.tar.gz
+ $ cd sextractor-2.5.0
+ $ ./configure
+ $ make 
+ $ cd ..
+
+2. Compile SDFRED
+
+ $ cd sdfred20080610
+ $ ./configure
+ $ make
+ $ cd ..
+
+3. Download SprimeCam sample image data
+
+ $ wget http://www.naoj.org/Observing/DataReduction/mtk/subaru_red/SPCAM/data/spcam_training_data.tar.gz
+ $ tar xvzf spcam_training_data.tar.gz
+
+4. Write nodefile
+
+ $ cat nodefile
+  host1.ne.jp 2
+  host2.ne.jp 2
+  ...
+
+5. Execute Workflow
+
+ * Non parallel execution
+
+   $ rake
+    or
+   $ ./pwrake
+
+ * Parallel execution
+
+  - for NFS
+
+   $ ./pwrake NODEFILE=nodefile
+
+  - for Gfarm
+
+   $ ./pwrake NODEFILE=nodefile FS=gfarm
+
+  Target file: all.fits
