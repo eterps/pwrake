@@ -8,6 +8,7 @@
 # Requires SExtractor (2.5.0)
 # - Bertin & Arnouts 1996, A&AS, 117, 393
 
+
 dir1=Dir.glob(Dir.pwd+"/sextractor-*/src").last
 dir2=Dir.glob(Dir.pwd+"/sdfred*/bin").last
 
@@ -20,6 +21,7 @@ require "sdfred.rb"
 SDFREDSH=Dir.glob("sdfred*/sdfredSH").last
 
 SFITS = FileList["SUPA*.fits"]
+
 
 
 # Step 1: Basic Data Inspection and Renaming of Data Frames
@@ -100,6 +102,7 @@ end
 HFITS.sort!
 
 
+
 # Step 2: Subtraction overscan and bias
 # 
 #  $ overscansub.csh [overscansub.lis]
@@ -151,6 +154,7 @@ task :overscansub => TO_RHFITS
 task :step2 => :overscansub
 
 CLEAN.include(TO_RHFITS)
+
 
 
 # Step 3: Making flat field frames
@@ -257,13 +261,14 @@ CLEAN.include(TO_RHFITS)
 #                          - flat/
 #                          - standard/
 
-
 MASK_MKFLAT_HA_SRC="#{SDFREDSH}/mask_mkflat_HA/mask_mkflat_HA.sex"
 MASK_MKFLAT_HA_CONF="tmp_mask_mkflat_HA.sex"
 
 file( MASK_MKFLAT_HA_CONF => MASK_MKFLAT_HA_SRC ) do
   sh "sed '/USER_BACK_SIZE/ d' #{MASK_MKFLAT_HA_SRC} > #{MASK_MKFLAT_HA_CONF}"
 end
+
+CLEAN.include MASK_MKFLAT_HA_CONF
 
 # mask_mkflat_HA.csh mkflat.lis obj 0.5 1.3
 HEAD  = "obj"
@@ -272,7 +277,6 @@ UPPER = 1.3
 BLANK = -32768
 
 
-#MNAHFITS = TORFITS.map do |image|
 HTO_RHFITS = []
 TO_RHFITS.each do |image|
   mask_mkflat_sex = "mask_mkflat_HA_" + image.sub(/\.fits$/, ".sex")
@@ -329,19 +333,8 @@ TO_RHFITS.each do |image|
     opt += "-CHECKIMAGE_NAME #{check_mask_mkflat_fits} "
     sh "sex #{t.prerequisites[0]} #{opt} > /dev/null"
 
-    #File.open("#{SDFREDSH}/mask_mkflat_HA/mask_mkflat_HA.sex"){|f|
-    #  s = f.read
-    #  s.sub!(/USER_BACK_SIZE/, "#{sex_mesh_x},#{sex_mesh_y}" )
-    #  s.sub!(/check_mask_mkflat\.fits/, check_mask_mkflat_fits )
-    #  s.sub!(/mask_mkflat\.cat/, mask_mkflat_cat )
-    #  File.open(t.name,"w"){|w| w.write s}
-    #}
   }
   CLEAN.include check_mask_mkflat_fits
-
-  #file( check_mask_mkflat_fits => [image, mask_mkflat_sex] ) {|t|
-  #  sh "sex #{t.prerequisites[0]} -c #{t.prerequisites[1]} > /dev/null"
-  #}
 
   tmp_hole_fits = "tmp_hole_" + image
   file tmp_hole_fits => [check_mask_mkflat_fits] do |t|
@@ -487,6 +480,7 @@ task :mkflat => MFLAT
 task :step3 => :mkflat
 
 
+
 # Step 4: Flat Fielding
 # 
 #  $ ffield.csh [ffiled_mf.lis]  [ffield_im.lis]
@@ -539,6 +533,7 @@ task :flatfield => FTORHFITS
 task :step4 => :flatfield
 
 
+
 # Step 5: Distortion correction and atmospheric dispersion correction
 # 
 #  $ distcorr.csh [distcorr.lis]
@@ -560,6 +555,7 @@ task :step4 => :flatfield
 # the background. This is due to the fact that fractional pixel shifts
 # smooth out the noise while integer pixel shifts leave the original
 # noise characteristics intact.
+
 
 GFTORHFITS = []
 FTORHFITS.each do |image|
@@ -807,6 +803,7 @@ CLEAN.include "tmp_fwhmpsf_batch2"
 task :step6 => "tmp_fwhmpsf_batch2"
 
 
+
 # Step 7: Equalize the PSF size
 # 
 #  $ psfmatch_batch.csh [psfmatch_batch.lis] [max number of objects]
@@ -887,7 +884,6 @@ task :step6 => "tmp_fwhmpsf_batch2"
 # $ ls -1 gfTo_RH03042*.fits > psfmatch_batch.lis
 # $ psfmatch_batch.csh psfmatch_batch.lis 50 2000 30000 2.0 7.0 3.7 > psfmatch_batch.log &
 
-#PSFMATCH_BATCH_LIS = GFTORHFITS.select{|x| /gfTo_RH03042/=~x }
 PSFMATCH_BATCH_LIS = GFTORHFITS.select{|x| /gfTo_RH03042/=~x }
 
 #psfmatch_batch.csh psfmatch_batch.lis 50 2000 30000 2.0 7.0 3.7
@@ -908,13 +904,6 @@ PSFMATCH_BATCH_LIS.each do |image_in|
   image_cat = File.basename(image_in,".fits")+".cat"
   PSFMATCH_CAT << image_cat
 
-#   file image_cat => image_in do |t|
-#     # psfmatch.csh
-#     image_in = t.prerequisites[0]
-#     chkimg = "check_" + image_in
-#     sh "sex #{image_in} -c #{SDFREDSH}/psfmatch/psfmatch.sex -CATALOG_NAME #{t.name} -CHECKIMAGE_NAME #{chkimg}> /dev/null"
-#   end
-
   image_out = "p"+image_in
   logfile = File.basename(image_in,".fits")+".log"
 
@@ -925,11 +914,6 @@ PSFMATCH_BATCH_LIS.each do |image_in|
     target_fwhm = 3.7
     puts "target_fwhm=#{target_fwhm}"
     log = File.basename(img,".fits")+".log"
-    # res = psfmatch( img, P_number_of_obj, 
-    #                 P_min_flux, P_max_flux, P_min_fwhm, P_max_fwhm, 
-    #                 target_fwhm, out )
-    # res ||= []
-    # open(log,"w"){|f| f.puts res.join(' ')}
     sh "ruby psfmatch.rb #{img} #{P_number_of_obj} #{P_min_flux} #{P_max_flux} #{P_min_fwhm} #{P_max_fwhm} #{target_fwhm} #{out} #{log}"
   end
 
@@ -961,20 +945,6 @@ file "psfmatch_batch.log" => PSFMATCH_LOG do |t|
     make_a_histogram(tmp_psfmatch_batch2, 0.1, f)
   end
 
-  #make a histogram
-  #hist_min = tmp_psfmatch_batch2.min
-  #hist_max = tmp_psfmatch_batch2.max
-  #
-  #tmp_psfmatch_batch3 = mkhist( tmp_psfmatch_batch2, hist_min, hist_max, 0.1 )
-  #
-  #open(t.name, "w") do |f|
-  #  f.puts "\nPSF | number of images"
-  #  tmp_psfmatch_batch3.each do |psf,num|
-  #    f.print "#{psf} |"
-  #    num.times{f.print "*"}
-  #    f.puts
-  #  end
-  #end
 end
 
 CLEAN.include "psfmatch_batch.log"
@@ -1037,6 +1007,8 @@ end
 CLEAN.include SKYSB_OUT
 task :step8 => SKYSB_OUT
 
+
+
 # Step 9: Masking the AG Shade
 # 
 #  $ mask_AGX.csh [mask_AGX.lis]
@@ -1081,6 +1053,7 @@ end
 
 CLEAN.include MASK_AGX_OUT
 task :step9 => MASK_AGX_OUT
+
 
 
 # Step 10: Masking Bad Pixels
@@ -1219,6 +1192,7 @@ CLEAN.include BLANK_OUT
 task :step10 => BLANK_OUT
 
 
+
 # Step 11: Estimating Alignment and Scaling
 # 
 #  $ makemos.csh [makemos.lis] [starsel nskysigma] [starsel npix] 
@@ -1322,11 +1296,9 @@ task :step10 => BLANK_OUT
 # this is not the case, Step 11 will fail.
 #  
 
-
 # $ ls -1 bAspgfTo_RH03042*.fits > makemos.lis
 # $ makemos.csh makemos.lis 5 20 500 10000 10 all.mos > makemos.log
 
-#MOS_makemoslist = $1
 MOS_nskysigma = 5
 MOS_npix = 20
 MOS_peakmin = 500
@@ -1335,26 +1307,18 @@ MOS_apphotrad = 10
 MOS_outmos = "all.mos"
 
 MES_LIS = []
-#MESSEL_LIS = []
 
 MAKEMOS_LIS = BLANK_OUT
 
 MAKEMOS_LIS.each do |image|
   mes = image + ".mes"
-  #messel = mes + "sel"
   file mes => image do |t|
     sh "sync"
     sh "starsel2 -nskysigma=#{MOS_nskysigma} -npix=#{MOS_npix} -aratiomin=0.4 -peakmin=#{MOS_peakmin} -peakmax=#{MOS_peakmax} -aprad=#{MOS_apphotrad} -outmes=#{t.name} #{t.prerequisites[0]} > /dev/null"
   end
-  #file messel => messel
   MES_LIS << mes
-  #MESSEL_LIS << messel
 end
 CLEAN.include MES_LIS
-#CLEAN.include MESSEL_LIS
-
-#echo -n #{image}.mes >> shotmatch.lis
-#echo -n " " >> shotmatch.lis
 
 # shotmatch7a.sh 30 `cat shotmatch.lis` > log_shotmatch
 
@@ -1374,25 +1338,29 @@ if ! File.file? "overlap_lis"
         OVERLAP_TASK_LIST << n = "match#{count}"
         task( n => [aorg,borg] ) do |t|
           sh "overlap2 #{t.prerequisites.join(' ')}" do |res,status|
-          #if status.to_i == 0
-          if res
-            OVERLAP_LIST << x = "#{t.name} #{ames} #{bmes}"
-            puts x
+            #if status.to_i == 0
+            if res
+              OVERLAP_LIST << x = "#{t.name} #{ames} #{bmes}"
+              puts x
+            end
           end
         end
+        count += 1
       end
-      count += 1
     end
   end
-end
+  
+  if ! Rake.application.top_level_tasks.include?("clean")
 
-file( "overlap_lis" => OVERLAP_TASK_LIST ) do |t|
-  open(t.name,"w") do |f|
-    OVERLAP_LIST.each{|x| f.puts x}
+    file( "overlap_lis" => OVERLAP_TASK_LIST ) do |t|
+      open(t.name,"w") do |f|
+        OVERLAP_LIST.each{|x| f.puts x}
+      end
+    end.invoke
+
   end
-end.invoke
-
 end
+
 
 CLEAN.include "overlap_lis"
 
@@ -1405,54 +1373,20 @@ open("overlap_lis") do |f|
   while s = f.gets
     mdat, ames, bmes = s.split
     mdat += '.dat'
-    file mdat => [ames,bmes] do |t|
+
+    file( mdat => [ames,bmes] ) do |t|
       a, b = t.prerequisites
       shotmatch( a, b, SM_nmin, SM_nmax, t.name )
     end
+
     MATRIX_LIS << mdat
   end
 end
 
 CLEAN.include MATRIX_LIS
 
-# count=0
-# MES_LIS.each do |ames|
-#   puts "check ames=#{ames}"
-#   aorg = nil
-#   if /To_R(H\d{6}.*)\.mes$/ =~ ames
-#     aorg = HFITS_HASH[$1]
-#   end
-#   next if !aorg
-#   MES_LIS.each do |bmes|
-#     puts "check ames=#{ames} & bmes=#{bmes}"
-#     borg = nil
-#     if /To_R(H\d{6}.*)\.mes$/ =~ bmes
-#       borg = HFITS_HASH[$1]
-#     end
-#     next if !borg
-#     #if File.file?(ames) && File.file?(bmes) && ames != bmes
-#     puts "check #{ames} & #{bmes}"
-#     if ames != bmes and system "overlap2 #{aorg} #{borg}"
-#       puts "overlap #{ames} & #{bmes}"
-#       #
-#       abas = File.basename(ames,".fits.mes")
-#       bbas = File.basename(bmes,".fits.mes")
-#       #mdat = "A_" + abas + "_B_" + bbas + ".dat"
-#       mdat = "mes%07d.dat" % count
-#       file mdat => [ames,bmes] do |t|
-#         a,b = t.prerequisites
-#         shotmatch( a, b, SM_nmin, SM_nmax, t.name )
-#       end
-#       MATRIX_LIS << mdat
-#       count += 1
-#     end
-#   end
-# end
-
 
 file "matrix.dat" => MATRIX_LIS do |t|
-  #a = t.prerequisites.select{|fn| File.file?(fn)}
-  #sh "cat #{a.join(' ')} > #{t.name}"
   open(t.name,"w") do |w|
     t.prerequisites.each do |fn|
       s = IO.read(fn).chomp
@@ -1466,16 +1400,13 @@ CLEAN.include "matrix.dat"
 MATCHSTACK="match_stack5"
 
 file "all.mos" => "matrix.dat" do |t|
-  # $MATCHSTACK $MATRIX | sort | sed 's/'$MESSELEXT'//' > $OUTMOS
   sh "#{MATCHSTACK} #{t.prerequisites[0]} > #{t.name}.tmp"
-  #sh "cat #{t.name}.tmp | sort | sed 's/.messel//' > #{t.name}"
   sh "cat #{t.name}.tmp | sort > #{t.name}"
 end
 
 CLEAN.include ["all.mos", "all.mos.tmp"]
 
 task :step11 => "all.mos"
-
 
 
 
@@ -1531,12 +1462,6 @@ file "all.fits" => ["all.mos"]+BLANK_OUT do |t|
     cmd = "gfrep -m -N 1 -D #{hostname} #{list}"
     puts cmd
     system cmd
-    #t.prerequisites.map do |x|
-      #x = tt.prerequisites[0]
-      #puts "gfrep -D #{hostname} #{gfpwd}/#{x}"
-      #system "gfrep -D #{hostname} #{gfpwd}/#{x}"
-    #end
-    #multitask :gfrep => t.prerequisites
   end
   sh "imcio2a -dist_clip -nline=20 -dtype=FITSFLOAT -pixignr=-32768 #{t.prerequisites[0]} #{t.name}"
 end
@@ -1546,7 +1471,13 @@ task :default => "all.fits"
 
 # Reduction of Standard Object
 # 
-# Steps 1S through 4S describe a typical procedure for reducing standard stars data. Since the physics behind this is the same as for reducing target objects, you can essentially repeat the procedure. Don't forget to work in the standard/ directory. The flat frames must be the same as those used for the objects, therefore be sure to copy them from the object/ directory.
+# Steps 1S through 4S describe a typical procedure for reducing
+# standard stars data. Since the physics behind this is the same as
+# for reducing target objects, you can essentially repeat the
+# procedure. Don't forget to work in the standard/ directory. The flat
+# frames must be the same as those used for the objects, therefore be
+# sure to copy them from the object/ directory.
+
 # Step 1S Renaming
 # 
 # $ namechange.csh [raw fits file list]
@@ -1579,7 +1510,7 @@ task :default => "all.fits"
 # H030330object044_si002s.fits
 # H030330object044_si005s.fits
 # ... 
-# 
+
 # Step 2S Overscan and bias subtraction
 # 
 #  $ overscansub.csh [overscansub.lis]
@@ -1600,6 +1531,7 @@ task :default => "all.fits"
 # ... 
 # 
 # and, To_RH030330object044_si001s.fits ... are created.
+
 # Step 3S Flat fielding
 # 
 #  $ ffield.csh [ffiled_mf.lis]  [ffield_im.lis]
@@ -1607,7 +1539,9 @@ task :default => "all.fits"
 #    ffield_mf.lis = list of flats to be used
 #    ffield_im.lis = list of (overscan subtracted) files to be flat fielded
 # 
-# The flat frames used in this step (ffield_mf.lis) must be identical to those used for the target(s) in order to cancel out the uncertainty in the normalization.
+# The flat frames used in this step (ffield_mf.lis) must be identical
+# to those used for the target(s) in order to cancel out the
+# uncertainty in the normalization.
 # 
 # Example:
 # 
@@ -1617,26 +1551,39 @@ task :default => "all.fits"
 # $ ffield.csh ffield_mf.lis ffield_im.lis
 # 
 # and fTo_RH030330object044_si001s.fits ... are created.
+
 # Step 4S Distortion correction and atmospheric dispersion correction
 # 
 #  $ distcorr.csh [distcorr.lis]
 # 
 #    distcorr.lis = list of (flat fielded) files to be corrected
 # 
-# The distortion correction is required since it slightly changes the sizes of the pixels, yielding slightly different flux value(s).
+# The distortion correction is required since it slightly changes the
+# sizes of the pixels, yielding slightly different flux value(s).
 # 
 # Example:
 # 
 # $ ls -1 fTo_RH*.fits >distcorr.lis
 # $ distcorr.csh distcorr.lis
-# 
+
 # Step 5S Correction of relative flux scale among chips
 # 
-# Recall that the relative flux "scale" between different CCD chips has not yet been corrected even after the Step 4S. For example, the sensitivity of w67c1 is about one half in 2002-2008/06 data. If there is a star that has 10000 ADU in w67c1, it should have ~ 20000 ADU if it was observed with the other chip. The relative flux scale should be corrected according to the *.mos created in step (11) of the target object.
+# Recall that the relative flux "scale" between different CCD chips
+# has not yet been corrected even after the Step 4S. For example, the
+# sensitivity of w67c1 is about one half in 2002-2008/06 data. If
+# there is a star that has 10000 ADU in w67c1, it should have ~ 20000
+# ADU if it was observed with the other chip. The relative flux scale
+# should be corrected according to the *.mos created in step (11) of
+# the target object.
 # 
-# This step is unnecessary if the standard star is only in si001s. Since standard stars are distributed in several chips in the sample data, this process is needed.
+# This step is unnecessary if the standard star is only in
+# si001s. Since standard stars are distributed in several chips in the
+# sample data, this process is needed.
 # 
-# In this step, the data is divided by a typical relative value of the chip to the reference chip. Currently (SDFRED ver1.*), the script for this step is not provided. Users should do this process manually.
+# In this step, the data is divided by a typical relative value of the
+# chip to the reference chip. Currently (SDFRED ver1.*), the script
+# for this step is not provided. Users should do this process
+# manually.
 # 
 # Acknowledgment
 # The SDFRED team thanks Takehiko Wada (JAXA), Chiaki Ihara (JAXA),
