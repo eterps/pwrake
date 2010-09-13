@@ -140,14 +140,15 @@ module Montage
 	    puts "unmach1 : #{name}" 
 	    raise
 	  end
-	  if /a=#{n}, b=#{n}, c=#{n}, crpix1=#{n}, crpix2=#{n}, xmin=#{n}, xmax=#{n}, ymin=#{n}, ymax=#{n}, xcenter=#{n}, ycenter=#{n}, npixel=#{n}, rms=#{n}, boxx=#{n}, boxy=#{n}, boxwidth=#{n}, boxheight=#{n}, boxang=#{n}/ !~ r
+	  if /a=#{n}, b=#{n}, c=#{n}, crpix1=#{n}, crpix2=#{n}, xmin=#{n}, xmax=#{n}, ymin=#{n}, ymax=#{n}, xcenter=#{n}, ycenter=#{n}, npixel=#{n}, rms=#{n}, boxx=#{n}, boxy=#{n}, boxwidth=#{n}, boxheight=#{n}, boxang=#{n}/ =~ r
+            args = (idx+Regexp.last_match[1..-1]).map{|x| x.to_f}
+            f.puts " %5d %5d %12.5e %12.5e %12.5e %9.2f %9.2f %6d %6d %6d %6d %9.2f %9.2f %9.0f %12.5e %12.1f %12.1f %12.1f %12.1f %12.1f" % args
+          else
 	    puts "unmach2 : #{r}"
-	    raise
+	    #raise
 	  end
-	  args = (idx+Regexp.last_match[1..-1]).map{|x| x.to_f}
-	  f.puts " %5d %5d %12.5e %12.5e %12.5e %9.2f %9.2f %6d %6d %6d %6d %9.2f %9.2f %9.0f %12.5e %12.1f %12.1f %12.1f %12.1f %12.1f" % args
 	#rescue
-	  #puts "Error in Montage.write_fitfits_tbl"
+          #puts "Error in Montage.write_fitfits_tbl"
 	#end
       end
     end

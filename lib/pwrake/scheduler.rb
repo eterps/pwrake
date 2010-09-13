@@ -40,7 +40,7 @@ module Pwrake
     end
 
     def initialize(hosts=[])
-      @n = hosts.size
+      @n = 1 #hosts.size/4
       @n = 1 if @n==0
       @finished = false
       @m = Mutex.new
