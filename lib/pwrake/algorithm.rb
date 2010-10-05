@@ -15,7 +15,13 @@ module Pwrake
       @footprint = {}
       @fetched_tasks = []
       @mutex.synchronize do
-        if find_task( root, [] )
+        tm = timer("trace")
+        status = find_task( root, [] )
+        msg = [ "num_tasks=%i" % [@fetched_tasks.size] ]
+        tk = @fetched_tasks[0]
+        msg << "task[0]=%s" % tk.name.inspect if tk.kind_of?(Rake::Task)
+        tm.finish(msg.join(' '))
+        if status
           return @fetched_tasks
         else
           return nil
@@ -25,8 +31,6 @@ module Pwrake
 
     def find_task( task, chain )
       name = task.name
-      #log "-- trace #{name}."
-      #log "-- trace #{task.inspect}."
 
       if task.already_invoked
         return nil
@@ -80,21 +84,15 @@ module Pwrake
       log "@scheduler.class = #{@scheduler.class}"
       log "@scheduler.queue_class = #{@scheduler.queue_class}"
       @input_queue = @scheduler.queue_class.new(Pwrake.manager.core_list)
-      # @to_worker = TaskQueue.new(connections)
-      # @from_worker = Queue.new
       @scheduler.on_start
       @workers = []
       connections.each_with_index do |conn,j|
         @workers << Thread.new(conn,j) do |c,i|
           begin
-            #p [conn.host, Thread.current]
             thread_loop(c,i)
           ensure
             log "-- worker[#{i}] ensure : closing #{conn.host}"
-            #p [:ensure, conn.host, Thread.current]
-            #Thread.pass
             conn.close
-            # @workers.each{|t| t.join if t.alive? }
           end
         end
       end
@@ -107,12 +105,12 @@ module Pwrake
       host = conn.host
       standard_exception_handling do
         while task = @input_queue.pop(host)
-          log "-- worker[#{i}] start task: #{task}"
+          tm = timer("task","worker##{i} task=#{task}")
           task = @scheduler.on_execute(task)
           task.already_invoked = true
           task.execute #if task.needed?
           task.output_queue.push(task)
-          log "-- worker[#{i}] end task: #{task}"
+          tm.finish("worker##{i} task=#{task}")
         end
       end
       log "-- worker[#{i}] loopout : #{task}"
@@ -160,7 +158,6 @@ module Pwrake
       end
       output_queue = Queue.new
       while a = @tracer.available_task(root)
-        # log{ a.map{|x| "-- fetch #{x.inspect}"} }
         a = @scheduler.on_trace(a)
         a.each{|task| task.output_queue = output_queue }
         @input_queue.push(a)
@@ -183,7 +180,6 @@ module Pwrake
         @input_queue.thread_end(thread)
         thread.join
         log "-- new worker[#{j}] exit"
-        #thread.exit
       end
     end
 
@@ -191,7 +187,6 @@ module Pwrake
       log "-- Operator#finish called ---"
       @scheduler.on_finish
       @input_queue.finish
-      #Thread.pass
       @workers.each{|t| t.join }
     end
   end
@@ -247,16 +242,3 @@ module Rake
 
 end
 
-
-#Rake::Task.include( Pwrake::Task )
-#Rake::Application.include( Pwrake::Application )
-
-#Rake::Task.module_eval { include Pwrake::Task }
-#Rake::Application.module_eval { include Pwrake::Application }
-
-
-#alias task_orig :task
-
-#def task(*args, &block)
-#  Rake::ParallelTask.define_task(*args, &block)
-#end
