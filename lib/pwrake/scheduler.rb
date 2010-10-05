@@ -40,8 +40,6 @@ module Pwrake
     end
 
     def initialize(hosts=[])
-      @n = 1 #hosts.size/4
-      @n = 1 if @n==0
       @finished = false
       @m = Mutex.new
       @q = SimpleQueue.new if !defined? @q
@@ -54,30 +52,28 @@ module Pwrake
         tasks.each do |task|
           @q.push(task)
         end
-        @cv.broadcast
+        @cv.signal
       end
     end
 
     def pop(host=nil)
-      @m.synchronize do
-        i = 0
-        loop do
+      loop do
+        @m.synchronize do
           if @th_end.first == Thread.current
             @th_end.shift
             return false
-          end
-          if task = @q.pop(host)
+          elsif task = @q.pop(host)
+            @cv.signal
             return task
           elsif @finished # no task in queue
             @cv.signal
             return false
-          elsif i >= @n
-            if task = @q.pop_alt(host)
-              return task
-            end
+          elsif task = @q.pop_alt(host)
+            @cv.signal
+            return task
+          else
+            @cv.wait(@m)
           end
-          i += 1
-          @cv.wait(@m)
         end
       end
     end
