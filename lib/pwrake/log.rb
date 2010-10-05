@@ -23,7 +23,30 @@ module Pwrake
       t.strftime("%Y-%m-%dT%H:%M:%S.%%06d") % t.usec
     end
 
-    module_function :log, :time_str
+    def timer(prefix,*args)
+      Timer.new(prefix,*args)
+    end
+
+    module_function :log, :time_str, :timer
+  end
+
+  class Timer
+    include Log
+
+    def initialize(prefix,*extra)
+      @prefix = prefix
+      @start_time = Time.now
+      str = "%s[start]:%s %s" % [@prefix, Pwrake.time_str(@start_time), extra.join(' ')]
+      log(str)
+    end
+
+    def finish(*extra)
+      end_time = Time.now
+      elap_time = end_time - @start_time
+      str = "%s[end]:%s elap=%.3f %s" % 
+        [@prefix, Pwrake.time_str(end_time), elap_time, extra.join(' ')]
+        log(str)
+    end
   end
 
   # Pwrake.log
@@ -34,5 +57,10 @@ module Pwrake
   # Pwrake.time_str
   def self.time_str(t)
     Log.time_str(t)
+  end
+
+  # Pwrake.timer
+  def self.timer(x,*a)
+    Log.timer(x,*a)
   end
 end
