@@ -52,10 +52,13 @@ module Pwrake
       end
     end
 
-    def exec(command)
+    def backquote(*command)
+      if command.kind_of? Array
+        command = command.join(' ')
+      end
       @lock.synchronize do
         @io.puts(command)
-        _get
+        _get_output
       end
     end
 
@@ -71,16 +74,12 @@ module Pwrake
     end
 
     def cd(dir)
-      exec("cd #{dir}")
+      system("cd #{dir}")
     end
 
     def cd_cwd
-      exec("cd #{Dir.pwd}")
+      system("cd #{Dir.pwd}")
     end
-
-    #def fs_pwd
-    #  exec("pwd")[0]
-    #end
 
     def self.connect_list( hosts )
       hosts.map do |h|
@@ -100,9 +99,9 @@ module Pwrake
     }
 
     private
+
     def _get
       @io.puts "\necho '#{@terminator}':$? "
-      a = []
       while x = @io.gets
         x.chomp!
         if x[0,TLEN] == @terminator
@@ -110,6 +109,19 @@ module Pwrake
           break
         end
         puts x
+      end
+      @status==0
+    end
+
+    def _get_output
+      @io.puts "\necho '#{@terminator}':$? "
+      a = ''
+      while x = @io.gets
+        x.chomp!
+        if x[0,TLEN] == @terminator
+          @status = Integer(x[TLEN+1..-1])
+          break
+        end
         a << x
       end
       a
