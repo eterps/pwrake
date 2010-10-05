@@ -56,7 +56,7 @@ module Pwrake
               compare = "!="
             end
             #puts "compare = #{compare}"
-            log "-- access to #{prereq_name}: gfwhere=#{scheduled.inspect} #{compare} execed=#{exec_host}"
+            log "-- access to #{prereq_name}: gfwhere=#{scheduled.inspect} #{compare} exec=#{exec_host}"
           end
         end
       end
