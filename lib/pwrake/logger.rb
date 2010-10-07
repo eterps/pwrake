@@ -4,6 +4,7 @@ module Pwrake
     include Pwrake::Log
 
     def initialize(arg=nil)
+      @lock = Mutex.new
       @out=nil
       File.open(arg) if arg
     end
@@ -19,7 +20,9 @@ module Pwrake
         @closeable=true
       end
       @start_time = Time.now
-      @out.puts "LogStart="+time_str(@start_time)
+      @lock.synchronize do
+        @out.puts "LogStart="+time_str(@start_time)
+      end
     end
 
     def finish(str, start_time)
@@ -28,16 +31,22 @@ module Pwrake
         t1 = time_str(start_time)
         t2 = time_str(finish_time)
         elap = finish_time - start_time
-        @out.puts "#{str} : start=#{t1} end=#{t2} elap=#{elap}"
+        @lock.synchronize do
+          @out.print "#{str} : start=#{t1} end=#{t2} elap=#{elap}\n"
+        end
       end
     end
 
     def puts(s)
-      @out.puts(s) if @out
+      if @out
+        @lock.synchronize do
+          @out.puts(s) 
+        end
+      end
     end
 
     def <<(s)
-      @out.puts(s) if @out
+      self.puts(s)
     end
 
     def close
