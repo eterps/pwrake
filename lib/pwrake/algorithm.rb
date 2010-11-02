@@ -108,7 +108,9 @@ module Pwrake
           tm = timer("task","worker##{i} task=#{task}")
           task = @scheduler.on_execute(task)
           task.already_invoked = true
+          @scheduler.on_task_start(task)
           task.execute #if task.needed?
+          @scheduler.on_task_end(task)
           task.output_queue.push(task)
           tm.finish("worker##{i} task=#{task}")
         end
@@ -231,12 +233,12 @@ module Rake
 
     def invoke(*args)
       log "--- Task#invoke(#{args.inspect}) Pwrake.manager.threads=#{Pwrake.manager.threads}"
-      if Pwrake.manager.threads == 1
-        invoke_orig(*args)
-      else
+      #if Pwrake.manager.threads == 1
+      #  invoke_orig(*args)
+      #else
         task_args = TaskArguments.new(arg_names, args)
         Pwrake.manager.operator.invoke(self,task_args)
-      end
+      #end
     end
   end
 

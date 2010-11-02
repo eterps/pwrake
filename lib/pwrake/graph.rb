@@ -5,22 +5,35 @@ module Pwrake
     def initialize
       @nodes = []
       @edges = []
-      @tag_hash = {}
+      # @node_id = {}
+      @filenode_id = {}
+      @tasknode_id = {}
+      @node_name = {}
       @count = 0
       @traced = {}
     end
-    
-    def trace( name = :default )
-      push_node( name )
-      task = Rake.application[name]      
-      @traced[task] = true
-      task.prerequisites.each_with_index do |prereq_name,i|
-        prereq = Rake.application[prereq_name]
-        if i < 150
-          if ! @traced[prereq]
-            trace( prereq_name )
-          end
-          push_edge( prereq_name, name )
+
+    attr_reader :filenode_id, :tasknode_id, :node_name
+
+    def trace( name = :default, target = nil )
+      traced_cond = @traced[name]
+
+      task = Rake.application[name]
+
+      if task.kind_of?(Rake::FileTask)
+        push_filenode( name )
+        if !task.actions.empty? and !traced_cond
+          push_tasknode( name )
+          push_taskedge( name )
+        end
+        push_fileedge( name, target )
+        target = name
+      end
+      @traced[name] = true
+
+      if !traced_cond
+        task.prerequisites.each_with_index do |prereq,i|
+          trace( prereq, target )
         end
       end
     end
@@ -31,17 +44,81 @@ module Pwrake
       name.sub(/H\d+/,'').sub(/object\d+/,"")
     end
 
-    def push_node( name )
-      if @tag_hash[name].nil?
+    #def push_node( name )
+    #  if @node_id[name].nil?
+    #    tag = "T#{@count}"
+    #    @node_id[name] = tag
+    #    @node_name[tag] = name
+    #    # @nodes.push "#{tag} [label=\"#{trim(name)}\", style=filled, fillcolor=magenta];"
+    #    @nodes.push "#{tag} [label=\"#{trim(name)}\", shape=box];"
+    #    @count += 1
+    #  end
+    #end
+
+    def push_filenode( name )
+      if @filenode_id[name].nil?
         tag = "T#{@count}"
-        @tag_hash[name] = tag
-        @nodes.push "#{tag} [label=\"#{trim(name)}\", style=filled, fillcolor=magenta];"
         @count += 1
+        @filenode_id[name] = tag
+        @node_name[tag] = name
+        @nodes.push "#{tag} [label=\"#{trim(name)}\", shape=box];"
       end
     end
 
-    def push_edge( prereq_name, name )
-      @edges.push "#{@tag_hash[prereq_name]} -> #{@tag_hash[name]};"
+    def push_tasknode( name )
+      if @tasknode_id[name].nil?
+        tag = "T#{@count}"
+        @count += 1
+        @tasknode_id[name] = tag
+        @node_name[tag] = name
+        label = Rake.application[name].comment
+        @nodes.push "#{tag} [label=\"#{label}\", shape=ellipse];"
+      end
+    end
+
+    #def push_edge( name, target )
+    #  if target
+    #    @edges.push "#{@node_id[name]} -> #{@node_id[target]};"
+    #  end
+    #end
+
+    #def push_edge( name, target )
+    #  if target
+    #    if n2 = @tasknode_id[target]
+    #      n1 = @filenode_id[name]
+    #    elsif n1 = @tasknode_id[name]
+    #      n2 = @filenode_id[target]
+    #    else
+    #      n1 = @filenode_id[name]
+    #      n2 = @filenode_id[target]
+    #    end
+    #    @edges.push "#{n1} -> #{n2};"
+    #    if n1 = @tasknode_id[name]
+    #      n2 = @filenode_id[name]
+    #      @edges.push "#{n1} -> #{n2};"
+    #    end
+    #  end
+    #end
+
+    def push_fileedge( name, target )
+      if target
+        if n2 = @tasknode_id[target]
+          n1 = @filenode_id[name]
+        elsif n1 = @tasknode_id[name]
+          n2 = @filenode_id[target]
+        else
+          n1 = @filenode_id[name]
+          n2 = @filenode_id[target]
+        end
+        @edges.push "#{n1} -> #{n2};"
+      end
+    end
+
+    def push_taskedge( name )
+      if n1 = @tasknode_id[name]
+        n2 = @filenode_id[name]
+        @edges.push "#{n1} -> #{n2};"
+      end
     end
 
     def write(file)

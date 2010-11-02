@@ -120,6 +120,12 @@ module Pwrake
     def on_finish
     end
 
+    def on_task_start(t)
+    end
+
+    def on_task_end(t)
+    end
+
     def queue_class
       TaskQueue
     end
