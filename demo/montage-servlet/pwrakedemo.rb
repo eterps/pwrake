@@ -52,7 +52,7 @@ if defined? Pwrake
             sh "mShrink #{fn} #{fits} #{shrink}"
           end
           jpg = fn.sub(/\.fits$/,'.jpg')
-          sh "mJPEG -ct 0 -gray #{fits} -1.5s 60s gaussian -out #{jpg}" do |ok2,st2| end
+          sh "mJPEG -ct 0 -gray #{fits} -0.1s '99.8%' gaussian -out #{jpg}" do |ok2,st2| end
           res = "img #{fn}"
         end
       when /\.jpg$/
