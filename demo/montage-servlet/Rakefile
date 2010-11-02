@@ -1,0 +1,248 @@
+require 'rake/clean'
+require 'pwrake/graph' if defined? Pwrake
+require './montage_tools.rb'
+require './pwrakedemo.rb'
+
+# Default task
+task :default => "shrunk.jpg"
+
+Montage.original_workflow = false
+
+# Program path
+dir=Dir.glob(Dir.pwd+"/Montage_*/bin")
+ENV['PATH'] = "#{dir.last}:"+ENV['PATH']
+
+# Directory of input files
+INPUT_DIR = ENV["INPUT_DIR"] || "r"
+# Parameter file for the coorinate of a result image
+REGION_HDR = "#{INPUT_DIR}/region.hdr"
+# Parameter file for a shrunk image
+SHRUNK_HDR = "#{INPUT_DIR}/shrunken.hdr"
+# List of input FITS image files
+SRC_FITS = FileList["#{INPUT_DIR}/*.fits"]
+
+# Get image size
+File.open(REGION_HDR) do |f|
+  while l=f.gets
+    eval l if /(NAXIS[12])\s*=\s*(\d+)/ =~ l
+  end
+end
+
+# Tile parameter
+TILE_NX = ENV["TILE_NX"]
+TILE_NY = ENV["TILE_NY"]
+TILE_PIXEL=2000
+SHRINK_FACTOR=10
+NX = [(TILE_NX || NAXIS1/TILE_PIXEL).to_i, 4].max
+NY = [(TILE_NY || NAXIS2/TILE_PIXEL).to_i, 4].max
+
+# Make directories
+mkdir_p ["p","d","c","s","t"]
+
+### Projection
+P_IMGTBL=[]
+P_FITS=[]
+SRC_FITS.each do |src|
+  prj = src.sub(/^(.*?)([^\/]+).fits/,'p/\2.p.fits')
+  desc "mProjectPP"
+  file prj => [src,REGION_HDR] do |t|
+    sh "mProjectPP #{src} #{prj} #{REGION_HDR}" do |ok,status|
+      Montage.collect_imgtbl(t, P_IMGTBL) if ok
+    end
+  end
+  P_FITS << prj
+end
+
+### List projected files
+desc "mImgTbl"
+file "pimages.tbl" => P_FITS do |t|
+  Montage.put_imgtbl(P_IMGTBL, "p", "pimages.tbl")
+end
+
+### List overlapping images
+desc "mOverlaps"
+file "diffs.tbl" => "pimages.tbl" do |t|
+  sh "mOverlaps pimages.tbl diffs.tbl"
+end
+
+### Fit the difference of overlapping images
+desc "mFitplane"
+file "fits.tbl" => "diffs.tbl" do
+  # Read diffs.tbl
+  DIF_TBL = Montage.read_overlap_tbl("diffs.tbl")
+  # Write a list of fit-result files
+  Montage.write_fittxt_tbl("fittxt.tbl", DIF_TBL)
+
+  DIFF_FITS=[]
+  FIT_TBL=[]
+  DIF_TBL.each do |c|
+    p1 = "p/"+c[2]
+    p2 = "p/"+c[3]
+    DIFF_FITS << dif_fit = "d/"+c[4]
+    desc "mDiff"
+    file dif_fit => [p1,p2,REGION_HDR] do |t|
+      x1,x2,rh = t.prerequisites
+      # Calculate the difference of two images
+      sh "mDiff #{x1} #{x2} #{t.name} #{REGION_HDR}" do |ok,status|
+        # Fit image difference
+        Montage.fitplane(c[0..1], t, FIT_TBL) if ok
+      end
+    end
+  end
+
+  # List fit parameters
+  tsk = task :fits_tbl_invoke => DIFF_FITS do
+    Montage.write_fits_tbl(FIT_TBL, "fittxt.tbl", "fits.tbl")
+  end
+
+  task "fits.tbl" => :fits_tbl_invoke
+
+  show_graph
+  tsk.invoke
+end
+
+### Background modeling
+desc "mBgModel"
+file "corrections.tbl"=>["fits.tbl","pimages.tbl"] do
+  sh "mBgModel pimages.tbl fits.tbl corrections.tbl"
+end
+
+### Background correction
+desc "mImgtbl"
+file "cimages.tbl" => ["corrections.tbl","pimages.tbl"] do
+  C_IMGTBL=[]
+  C_FITS=[]
+
+  FileList["p/*.p.fits"].each do |s|    
+    dst = s.sub(/p\/(.*)\.p\.fits/, 'c/\1.c.fits')
+    desc "mBackground"
+    file dst => [s,"pimages.tbl","corrections.tbl"] do |t|
+      p0,p1,p2 = t.prerequisites
+      src = p0.sub(/p\//, '')
+      sh "(cd p; mBackground -t #{src} ../#{t.name} ../#{p1} ../#{p2})" do |ok,status|
+        Montage.collect_imgtbl(t, C_IMGTBL) if ok
+      end
+    end
+    C_FITS << dst
+  end
+
+  # List background-corrected images
+  tsk = task :cimages_invoke => C_FITS do
+    Montage.put_imgtbl(C_IMGTBL, "c", "cimages.tbl")
+  end
+
+  task "cimages.tbl" => :cimages_invoke
+
+  show_graph
+  tsk.invoke
+end
+
+### tile region
+TILE_TBL=[]
+# Iterate over NX x NY tiles
+NY.times do |iy|
+  NX.times do |ix|
+    # Divide into tile regions
+    tile_hdr = "t/tile_#{ix}_#{iy}.hdr"
+    desc "mTileHdr"
+    file tile_hdr => REGION_HDR do |t|
+      opt = "#{NX} #{NY} #{ix} #{iy} 50 50"
+      sh "mTileHdr #{t.prerequisites[0]} #{t.name} #{opt}"
+    end
+
+    # List images covering each tile
+    tile_tbl = tile_hdr.ext('tbl')
+    desc "mCoverageCheck"
+    file tile_tbl => [tile_hdr,"cimages.tbl"] do |t|
+      sh "mCoverageCheck cimages.tbl #{t.name} -header #{t.prerequisites[0]}"
+    end
+    TILE_TBL << tile_tbl
+  end
+end
+
+### Add all the images
+desc "mAdd"
+file "shrunk.fits" => TILE_TBL do
+  S_IMGTBL=[]
+  S_FITS=[]
+
+  TILE_TBL.each do |tile_tbl|
+    # find input files from a table
+    files = []
+    File.open(tile_tbl) do |r|
+      3.times{r.gets}
+      while l=r.gets
+        files << 'c/'+l.split.last
+      end
+    end
+
+    tile_hdr = tile_tbl.ext('hdr')
+    tile_fits = tile_tbl.ext('t.fits')
+    # Combine images in each tile
+    desc "mAdd"
+    file tile_fits => files+[tile_tbl,tile_hdr] do |t|
+      a = t.prerequisites[-2..-1].join(" ")
+      sh "mAdd -e -p c #{a} #{t.name} "
+    end
+
+    # Shrink each tile image
+    shrunk_fits = tile_fits.sub(/t\/(.*)\.t\.fits/, 's/\1.s.fits')
+    desc "mShrink"
+    file shrunk_fits => [tile_fits] do |t|
+      sh "mShrink #{t.prerequisites[0]} #{t.name} #{SHRINK_FACTOR}"
+      Montage.collect_imgtbl(t, S_IMGTBL)
+    end
+    S_FITS << shrunk_fits
+  end
+
+  # List shrunk tile images
+  desc "mImgtbl"
+  file "simages.tbl" => S_FITS do
+    Montage.put_imgtbl(S_IMGTBL, "s", "simages.tbl")
+  end
+
+  # Add all the images
+  desc "mAdd"
+  tsk = task :shrunk_fits_invoke => ["simages.tbl",SHRUNK_HDR]+S_FITS do |t|
+    sh "mAdd -n -e -p s #{t.prerequisites[0..1].join(' ')} shrunk.fits"
+  end
+
+  task "shrunk.fits" => :shrunk_fits_invoke
+
+  show_graph
+  tsk.invoke
+end
+
+### Add all the images
+desc "mAdd"
+file "mosaic.fits" => ["cimages.tbl", REGION_HDR] do |t|
+  sh "mAdd -p c #{t.prerequisites.join(' ')} #{t.name}"
+end
+
+### Convert the result FITS image to JPEG image
+desc "mJPEG"
+file "mosaic.jpg" => "mosaic.fits" do |t|
+  sh "mJPEG -ct 0 -gray #{t.prerequisites[0]} -1.5s 60s gaussian -out #{t.name}" do |*a| end
+end
+
+### Convert the result FITS image to JPEG image
+desc "mJPEG"
+file "shrunk.jpg" => ["shrunk.fits"] do |t|
+  sh "mJPEG -ct 0 -gray #{t.prerequisites[0]} -1.5s 60s gaussian -out #{t.name}" do |*a| end
+end
+
+CLEAN.include %w[ p d c s t ]
+CLEAN.include %w[ pimages.tbl cimages.tbl simages.tbl ]
+CLEAN.include %w[ diffs.tbl fits.tbl fittxt.tbl corrections.tbl ]
+CLOBBER.include %w[ mosaic.fits mosaic_area.fits mosaic.jpg ]
+CLOBBER.include %w[ shrunk.fits shrunk_area.fits shrunk.jpg ]
+
+# creat DAG image
+task :graph => "shrunk.jpg" do
+  require "pwrake/graph"
+  g = Pwrake::Graphviz.new
+  g.trace
+  g.write("graph.dot")
+end
+
+show_graph

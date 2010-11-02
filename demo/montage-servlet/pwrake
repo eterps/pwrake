@@ -1,0 +1,13 @@
+#!/usr/bin/env ruby19
+
+begin
+  require 'rake'
+rescue LoadError
+  require 'rubygems'
+  require 'rake'
+end
+
+$LOAD_PATH.push "../../lib"
+require "pwrake/load"
+
+Rake.application.run
