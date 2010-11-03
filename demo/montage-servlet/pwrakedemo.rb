@@ -45,14 +45,15 @@ if defined? Pwrake
       case fn
       when /\.fits$/
         if /\.t\.fits$/!~fn and fn!="shrunk.fits" and File.exist?(fn)
-          if /\.s\.fits$/=~fn
-            fits = fn
-          else
-            fits = fn.sub(/\.fits$/,'.s.fits')
-            sh "mShrink #{fn} #{fits} #{shrink}"
-          end
           jpg = fn.sub(/\.fits$/,'.jpg')
-          sh "mJPEG -ct 0 -gray #{fits} -0.1s '99.8%' gaussian -out #{jpg}" do |ok2,st2| end
+          if /\.s\.fits$/=~fn
+            sfits = fn
+          else
+            sfits = fn.sub(/\.fits$/,'.sfits')
+            sh "mShrink #{fn} #{sfits} #{shrink}"
+          end
+          sh "mJPEG -ct 0 -gray #{sfits} -0.1s '99.8%' gaussian -out #{jpg}" do |*a| end
+          sh "rm #{sfits}" if fn != sfits
           res = "img #{fn}"
         end
       when /\.jpg$/

@@ -77,17 +77,27 @@ function progressProc(input)
 	changePolygonAttr(res,'done');
 
       } else {
-	var img = null;
 	var res = line;
+	var img = null;
 	if (line.substring(0,4) == 'img '){
-	  var img = new Image();
-	  var res = line.substring(4);
-	  img.src = res.replace(/\.fits$/,'.jpg');
+	  img = new Image();
+	  res = line.substring(4);
+	  img.src = res.replace(/\.fits?$/,'.jpg');
 	}
+	var href = "";
+	if (res.match(/fits?$/)) {
+	  href = res;
+	} else {
+	  href = "Javascript:w=window.open('"+res+"','','scrollbars=yes,width=640,height=640,');w.focus();";
+	}
+	var a = parent.fr2.document.createElement("a");
+	a.setAttribute('href',href);
+	var txt = parent.fr2.document.createTextNode(res);
+	a.appendChild(txt);
+	var text = parent.fr2.document.createTextNode(""+(num++)+": ");
 	var div = parent.fr2.document.createElement("div");
-	var s = "" + (num++) + ": " + res;
-	var text = parent.fr2.document.createTextNode(s);
 	div.appendChild(text);
+	div.appendChild(a);
 	if (img) {
 	  div.appendChild(img);
 	}
