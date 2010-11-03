@@ -7,10 +7,7 @@ module Rake
       pwrake = nil
       begin
         pwrake = Pwrake.manager
-        #pwrake.setup
-        #pwrake.setup_dag
         top_level_orig
-        #end
       ensure
         puts "** ensure"
         pwrake.finish if pwrake
@@ -145,47 +142,30 @@ module Pwrake
         @affinity = true
         log "FILESYSTEM=Gfarm"
         require "pwrake/affinity"
-        #
-        #mountpoint = ENV["MOUNTPOINT"] || ENV["MP"]
-        #@single_mp = mountpoint && /single/=~mountpoint
-        #log "MOUNTPOINT=#{mountpoint}"
       else
         @gfarm = false
         log "FILESYSTEM=non-Gfarm"
       end
-      #
-      @gfarm_mountpoint = ENV["GFARM_MOUNTPOINT"] || ENV["GFARM_MP"]
     end
 
 
     def setup_connection
-      if @core_list.all?{|x| x=="localhost" }
-        @connection_class = Shell
-      elsif @gfarm
-        @connection_class = GfarmSSH
+      if @gfarm
+        @connection_class = GfarmChannel
       else
-        @connection_class = SSH
-        #require "pwrake/torque"
-        #@connection_class = Torque # SSH
+        @connection_class = Channel
       end
       time_init_ssh = Time.now
       log "@connection_class = #{@connection_class}"
-      @connection_list = @connection_class.connect_list(@core_list)
+      @connection_list = @connection_class.connect(@core_list)
     end
 
 
     def finish
       if @prepare_done
         @counter.print
-        #if @connection_list.size > 2
-        #  @connection_list.map{|v| Thread.new(v){|s| s.close }}.each{|t| t.join}
-        #else
-        #  @connection_list.map{|v| v.close }
-        #end
         @logger.close
         if @logfile
-          #mkdir_p "log"
-          #cp @logfile, "log/"
           $stderr.puts "log file : "+@logfile
         end
       end

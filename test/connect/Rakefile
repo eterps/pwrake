@@ -1,0 +1,13 @@
+T=[]
+N=1000
+
+N.times do |i|
+  fn = "#{i}"
+  task fn do |t|
+    sh "hostname"
+    #sh "ps x"
+  end
+  T.push fn
+end
+
+task :default => T

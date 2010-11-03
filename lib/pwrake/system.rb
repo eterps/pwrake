@@ -15,8 +15,8 @@ module FileUtils
     tm = Pwrake.timer("sh",cmd_log)
 
     conn = Thread.current[:connection]
-    if conn.kind_of?(Pwrake::Shell)
-      res    = conn.system(*cmd)
+    if conn.kind_of?(Pwrake::Channel)
+      res    = conn.execute(*cmd)
       status = Rake::PseudoStatus.new(conn.status)
       status = Rake::PseudoStatus.new(1) if !res && status.nil?
     else
@@ -38,7 +38,7 @@ module PwrakeFileUtils
     tm = Pwrake.timer("bq",cmd_log)
 
     conn = Thread.current[:connection]
-    if conn.kind_of?(Pwrake::Shell)
+    if conn.kind_of?(Pwrake::Channel)
       res    = conn.backquote(*cmd)
       status = Rake::PseudoStatus.new(conn.status)
       status = Rake::PseudoStatus.new(1) if !res && status.nil?
