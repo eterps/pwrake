@@ -165,7 +165,7 @@ function loadSvg()
     var sel = document.testform.graphsize;
     var mag = parseFloat(sel.options[sel.selectedIndex].value);
     var wid = doc.defaultView.getComputedStyle(doc.documentElement, null).getPropertyValue('width');
-    svg.style.width = (mag*0.01*parseInt(wid)).toString(10)+"px";
+    svg.style.width = (mag*0.01*(parseInt(wid)-30)).toString(10)+"px";
     elm.appendChild(svg);
   }
 }
@@ -203,7 +203,7 @@ function graphSize() {
   var sel = document.testform.graphsize;
   var mag = parseFloat(sel.options[sel.selectedIndex].value);
   var wid = doc.defaultView.getComputedStyle(doc.documentElement, null).getPropertyValue('width');
-  svg.style.width = (mag*0.01*parseInt(wid)).toString(10)+"px";
+  svg.style.width = (mag*0.01*(parseInt(wid)-30)).toString(10)+"px";
 }
 
 
