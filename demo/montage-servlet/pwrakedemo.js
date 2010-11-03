@@ -138,9 +138,10 @@ function changeEllipseAttr(tag,attr) {
 
 function loadSvg()
 {
-  var elem = parent.fr3.document.getElementById("workflowgraph");
-  while (elem.firstChild) {
-    elem.removeChild(elem.firstChild);
+  var doc = parent.fr3.document;
+  var elm = doc.getElementById("workflowgraph");
+  while (elm.firstChild) {
+    elm.removeChild(elm.firstChild);
   }
 
   var http = createHttpRequest();
@@ -152,10 +153,10 @@ function loadSvg()
     var svg = document.importNode(svgnodes[0], true);
     //svg.setAttributeNS(NS_URI, "preserveAspectRatio", "meet");
     var sel = document.testform.graphsize;
-    var svgmag = sel.options[sel.selectedIndex].value;
-    svg.style.width = ""+svgmag+"%";
-    svg.style.height = ""+svgmag+"%";
-    elem.appendChild(svg);
+    var mag = parseFloat(sel.options[sel.selectedIndex].value);
+    var wid = doc.defaultView.getComputedStyle(doc.documentElement, null).getPropertyValue('width');
+    svg.style.width = (mag*0.01*parseInt(wid)).toString(10)+"px";
+    elm.appendChild(svg);
   }
 }
 
@@ -185,12 +186,14 @@ function nodeOut(e) {
 
 
 function graphSize() {
+  var doc = parent.fr3.document;
+  var elm = doc.getElementById("workflowgraph");
+  var svg = elm.getElementsByTagName("svg")[0];
+
   var sel = document.testform.graphsize;
-  var svgmag = sel.options[sel.selectedIndex].value;
-  var elem = parent.fr3.document.getElementById("workflowgraph");
-  var svg = elem.getElementsByTagName("svg")[0];
-  svg.style.width = ""+svgmag+"%";
-  svg.style.height = ""+svgmag+"%";
+  var mag = parseFloat(sel.options[sel.selectedIndex].value);
+  var wid = doc.defaultView.getComputedStyle(doc.documentElement, null).getPropertyValue('width');
+  svg.style.width = (mag*0.01*parseInt(wid)).toString(10)+"px";
 }
 
 
