@@ -7,45 +7,54 @@
   <table width="100%">
     <tr>
       <td align="left">
-	<h2>Pwrake demo - Montage workflow</h2>
+        <b>Gfarm Filesystem &amp; Pwrake demo</b> - Montage workflow
       </td>
 
       <td align="right">
-	graph size
-	<select name="graphsize" id="graphsize" onchange="graphSize();">
-	  <option value="25">25%
-	  <option value="50">50%
-	  <option value="75">75%
-	  <option value="100" selected>100%
-	  <option value="125">125%
-	  <option value="150">150%
-	  <option value="200">200%
-	  <option value="300">300%
-	  <option value="400">400%
-	</select>
+        graph size
+        <select name="graphsize" id="graphsize" onchange="graphSize();">
+          <option value="25">25%
+          <option value="50">50%
+          <option value="75">75%
+          <option value="100" selected>100%
+          <option value="125">125%
+          <option value="150">150%
+          <option value="200">200%
+          <option value="300">300%
+          <option value="400">400%
+        </select>
       </td>
 
     </tr>
+  </table>
+  <table width="100%">
     <tr>
 
       <td>
-	<select name="selnodes" id="selnodes">
-	  <option value="les32">8 nodes x 4 cores
-	  <option value="les10" selected>5 nodes x 2 cores
-	  <option value="les1">1 node x 1 core
-	</select>
+        <select name="selnodes" id="selnodes">
+<!--
+          <option value="les32">8 nodes x 4 cores
+          <option value="les10" selected>5 nodes x 2 cores
+          <option value="les1">1 node x 1 core
+-->
+          <option value="dennis24" selected>12 nodes x 2 cores
+          <option value="dennis16" selected>8 nodes x 2 cores
+          <option value="dennis08" selected>4 nodes x 2 cores
+          <option value="dennis01">1 node x 1 core
+        </select>
 
-	<input type="button" value="start" onclick="startWorkflow()" />
-	<input type="button" value="stop" onclick="stopWorkflow()" />
+        <input type="button" value="start" onclick="startWorkflow()" />
+<!--
+        <input type="button" value="stop" onclick="stopWorkflow()" />
+ -->
+        <input name="openWin" type="button" value="Rakefile"
+               onClick="window.open('rakefile','','scrollbars=yes,width=800,height=500,');">
 
-	<input name="openWin" type="button" value="Rakefile"
-	       onClick="window.open('rakefile','','scrollbars=yes,width=800,height=500,');">
-
-	<span id="message"></span>
+        <span id="message"></span>
       </td>
 
       <td align="left" width="40%">
-	<span id="node_note"></span>
+        <span id="node_note"></span>
       </td>
 
     </tr>
