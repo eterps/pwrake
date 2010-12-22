@@ -2,7 +2,7 @@ require 'rake/clean'
 require './montage_tools.rb'
 
 # Default task
-task :default => "mapred"
+task :default => "finish"
 
 # Program path
 dir=Dir.glob(Dir.pwd+"/Montage_*/bin")
@@ -11,7 +11,7 @@ dir=Dir.glob(Dir.pwd+"/sextractor-*/src")
 ENV['PATH'] = "#{dir.last}:"+ENV['PATH']
 
 # Directory of input files
-INPUT_DIR = ENV["INPUT_DIR"] || "/home/tanaka/wkfl/nfs0/montage/data/data1"
+INPUT_DIR = ENV["INPUT_DIR"] || "/home/tanaka/wkfl/nfs0/montage/data/data0"
 
 # List of input FITS image files
 SRC_FITS = FileList["#{INPUT_DIR}/*.fits"]
@@ -68,7 +68,7 @@ file "diffs.tbl" => "images.tbl" do
 end
 
 ### Fit the difference of overlapping images
-file "mapred" => "diffs.tbl" do
+file "finish" => "diffs.tbl" do
   # Read diffs.tbl
   DIF_TBL = Montage.read_overlap_tbl("diffs.tbl")
 
@@ -103,7 +103,7 @@ file "mapred" => "diffs.tbl" do
   ary.each do |a|
     c1,c2,i1,i2,x1,x2 = *a
     name = "#{x1} #{x2}"
-    desc "reduce_dup"
+    desc "reduce_match"
     file name => [c1,c2,i1,i2] do |t|
       sh "./bin/reduce_match 4 #{t.prerequisites.join(' ')} #{t.name}"
     end
@@ -114,15 +114,17 @@ file "mapred" => "diffs.tbl" do
   # List fit parameters
   task :reduced_cat_invoke => REDUCED_CATS do end.invoke
 
-  file "mapred" => :reduced_cat_invoke
+  file "finish" => :reduced_cat_invoke
 end
+
+#file "finish" => :cat_all
 
 CLEAN.include %w[ n t c ]
 CLEAN.include %w[ images.tbl ]
 CLEAN.include %w[ diffs.tbl ]
 
 # creat DAG image
-task :graph => "mapred" do
+task :graph => "finish" do
   require "pwrake/graph"
   g = Pwrake::Graphviz.new
   g.trace
