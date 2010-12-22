@@ -1,0 +1,130 @@
+require 'rake/clean'
+require './montage_tools.rb'
+
+# Default task
+task :default => "mapred"
+
+# Program path
+dir=Dir.glob(Dir.pwd+"/Montage_*/bin")
+ENV['PATH'] = "#{dir.last}:"+ENV['PATH']
+dir=Dir.glob(Dir.pwd+"/sextractor-*/src")
+ENV['PATH'] = "#{dir.last}:"+ENV['PATH']
+
+# Directory of input files
+INPUT_DIR = ENV["INPUT_DIR"] || "/home/tanaka/wkfl/nfs0/montage/data/data1"
+
+# List of input FITS image files
+SRC_FITS = FileList["#{INPUT_DIR}/*.fits"]
+
+# Make directories
+mkdir_p ["n","t","c"]
+
+
+### Projection
+SRC_CAT=[]
+IMGTBL=[]
+IMG_HASH={}
+CAT_HASH={}
+SRC_FITS.each do |img|
+  base = File.basename(img,".fits")
+  img_fix = "n/"+base+".1.fits"
+  cat = "t/"+base+".1.cat"
+
+  desc "mFixNaN"
+  file img_fix => img do |t|
+    sh "mFixNaN -v 0 #{t.prerequisites[0]} #{t.name}"
+  end
+
+  desc "SExtractor"
+  file cat => img_fix do |t|
+    sh "sex -c default.sex #{t.prerequisites[0]} -CATALOG_NAME #{t.name}" do |ok,status|
+    #sh "touch #{t.name}" do |ok,status|
+      if ok
+        #puts t.prerequisites[0]
+        Montage.collect_imgtbl_fullname(t.prerequisites[0], IMGTBL)
+        CAT_HASH[t.name] = t.name
+      end
+    end
+  end
+  SRC_CAT << cat
+  IMG_HASH[base] = img_fix
+  CAT_HASH[base] = cat
+end
+
+#### List projected files
+#file "images.tbl" => SRC_CAT do |t|
+#  Montage.put_imgtbl(IMGTBL, ".", t.name)
+#end
+
+desc "mImgtbl"
+file "images.tbl" => SRC_FITS do
+  sh "mImgtbl #{INPUT_DIR} images.tbl"
+end
+
+desc "mOverlaps"
+### List overlapping images
+file "diffs.tbl" => "images.tbl" do
+  sh "mOverlaps images.tbl diffs.tbl"
+end
+
+### Fit the difference of overlapping images
+file "mapred" => "diffs.tbl" do
+  # Read diffs.tbl
+  DIF_TBL = Montage.read_overlap_tbl("diffs.tbl")
+
+  DIFF_FITS=[]
+  FIT_TBL=[]
+  ary=[]
+  DIF_TBL.each do |d|
+    b1 = File.basename(d[2],".fits")
+    b2 = File.basename(d[3],".fits")
+
+    c1 = CAT_HASH[b1]
+    c2 = CAT_HASH[b2]
+
+    i1 = IMG_HASH[b1]
+    i2 = IMG_HASH[b2]
+
+    x1 = c1.sub(/^t\/([^\/]+)\.(\d+)\.cat/){"t/#{$1}.#{$2.to_i+1}.cat"}
+    x2 = c2.sub(/^t\/([^\/]+)\.(\d+)\.cat/){"t/#{$1}.#{$2.to_i+1}.cat"}
+
+    ary.push [c1,c2,i1,i2,x1,x2]
+
+    CAT_HASH[b1] = x1
+    CAT_HASH[b2] = x2
+  end
+
+  # change directory for the last cat-data
+  REDUCED_CATS = CAT_HASH.map do |k,v|
+    v.sub!(/^t\/([^\/]+)\.(\d+)\.cat/, 'c/\1.cat')
+    v
+  end
+
+  ary.each do |a|
+    c1,c2,i1,i2,x1,x2 = *a
+    name = "#{x1} #{x2}"
+    desc "reduce_dup"
+    file name => [c1,c2,i1,i2] do |t|
+      sh "./bin/reduce_match 4 #{t.prerequisites.join(' ')} #{t.name}"
+    end
+    file x1 => name
+    file x2 => name
+  end
+
+  # List fit parameters
+  task :reduced_cat_invoke => REDUCED_CATS do end.invoke
+
+  file "mapred" => :reduced_cat_invoke
+end
+
+CLEAN.include %w[ n t c ]
+CLEAN.include %w[ images.tbl ]
+CLEAN.include %w[ diffs.tbl ]
+
+# creat DAG image
+task :graph => "mapred" do
+  require "pwrake/graph"
+  g = Pwrake::Graphviz.new
+  g.trace
+  g.write("graph.dot")
+end
