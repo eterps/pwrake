@@ -4,6 +4,7 @@ Source Extraction from Tiled images           Masahiro TANAKA 2010-12-22
 
  $ wget http://montage.ipac.caltech.edu/download/Montage_v3.3.tar.gz
  $ tar xvzf Montage_v3.3.tar.gz
+ $ patch -p0 < ../Montage_v3.3.patch
  $ cd Montage_v3.3/
  $ make
  $ cd ..

@@ -1,0 +1,151 @@
+diff -wurN Montage_v3.3.orig/Montage/Makefile.Darwin Montage_v3.3/Montage/Makefile.Darwin
+--- Montage_v3.3.orig/Montage/Makefile.Darwin	2009-12-11 12:54:51.000000000 +0900
++++ Montage_v3.3/Montage/Makefile.Darwin	2011-01-10 16:59:06.000000000 +0900
+@@ -55,7 +55,8 @@
+ 		mCoverageCheck mDiff mDiffExec mDiffFitExec mFitExec mFitplane        \
+ 	        mFlattenExec mGetHdr mHdrCheck mHdrtbl mImgtbl mMakeHdr               \
+ 		mMakeImg mOverlaps mProject mProjectPP mProjExec mPutHdr              \
+-		mShrink mSubimage mSubset mTANHdr mTblSort mTileHdr mTileImage
++		mShrink mSubimage mSubset mTANHdr mTblSort mTileHdr mTileImage        \
++                mImgHdr
+
+ MBINS  = 	mProjExecMPI mFitExecMPI mDiffExecMPI mBgExecMPI mAddMPI \
+ 		mAddExecMPI
+@@ -231,6 +232,10 @@
+ 		$(CC) -o mTileImage mTileImage.o \
+ 		checkHdr.o checkWCS.o subImage.o $(LIBS)
+
++mImgHdr:	mImgHdr.o get_hdr.o print_rec.o checkWCS.o
++		$(CC) -g -o mImgHdr mImgHdr.o \
++		get_hdr.o print_rec.o checkWCS.o $(LIBS)
++
+ install:
+ 		cp $(BINS) ../bin
+
+diff -wurN Montage_v3.3.orig/Montage/Makefile.LINUX Montage_v3.3/Montage/Makefile.LINUX
+--- Montage_v3.3.orig/Montage/Makefile.LINUX	2009-12-11 12:54:51.000000000 +0900
++++ Montage_v3.3/Montage/Makefile.LINUX	2011-01-10 16:58:17.000000000 +0900
+@@ -55,7 +55,8 @@
+ 		mCoverageCheck mDiff mDiffExec mDiffFitExec mFitExec mFitplane        \
+ 	        mFlattenExec mGetHdr mHdrCheck mHdrtbl mImgtbl mMakeHdr               \
+ 		mMakeImg mOverlaps mProject mProjectPP mProjExec mPutHdr              \
+-		mShrink mSubimage mSubset mTANHdr mTblSort mTileHdr mTileImage
++		mShrink mSubimage mSubset mTANHdr mTblSort mTileHdr mTileImage        \
++                mImgHdr
+
+ MBINS  = 	mProjExecMPI mFitExecMPI mDiffExecMPI mBgExecMPI mAddMPI \
+ 		mAddExecMPI
+@@ -231,6 +232,10 @@
+ 		$(CC) -o mTileImage mTileImage.o \
+ 		checkHdr.o checkWCS.o subImage.o $(LIBS)
+
++mImgHdr:	mImgHdr.o get_hdr.o print_rec.o checkWCS.o
++		$(CC) -g -o mImgHdr mImgHdr.o \
++		get_hdr.o print_rec.o checkWCS.o $(LIBS)
++
+ install:
+ 		cp $(BINS) ../bin
+
+diff -wurN Montage_v3.3.orig/Montage/Makefile.SunOS Montage_v3.3/Montage/Makefile.SunOS
+--- Montage_v3.3.orig/Montage/Makefile.SunOS	2009-12-11 12:54:51.000000000 +0900
++++ Montage_v3.3/Montage/Makefile.SunOS	2011-01-10 16:58:37.000000000 +0900
+@@ -55,7 +55,8 @@
+ 		mCoverageCheck mDiff mDiffExec mDiffFitExec mFitExec mFitplane        \
+ 	        mFlattenExec mGetHdr mHdrCheck mHdrtbl mImgtbl mMakeHdr               \
+ 		mMakeImg mOverlaps mProject mProjectPP mProjExec mPutHdr              \
+-		mShrink mSubimage mSubset mTANHdr mTblSort mTileHdr mTileImage
++		mShrink mSubimage mSubset mTANHdr mTblSort mTileHdr mTileImage        \
++                mImgHdr
+
+ MBINS  = 	mProjExecMPI mFitExecMPI mDiffExecMPI mBgExecMPI mAddMPI \
+ 		mAddExecMPI
+@@ -231,6 +232,10 @@
+ 		$(CC) -o mTileImage mTileImage.o \
+ 		checkHdr.o checkWCS.o subImage.o $(LIBS)
+
++mImgHdr:	mImgHdr.o get_hdr.o print_rec.o checkWCS.o
++		$(CC) -g -o mImgHdr mImgHdr.o \
++		get_hdr.o print_rec.o checkWCS.o $(LIBS)
++
+ install:
+ 		cp $(BINS) ../bin
+
+diff -wurN Montage_v3.3.orig/Montage/mImgHdr.c Montage_v3.3/Montage/mImgHdr.c
+--- Montage_v3.3.orig/Montage/mImgHdr.c	1970-01-01 09:00:00.000000000 +0900
++++ Montage_v3.3/Montage/mImgHdr.c	2009-11-09 14:38:52.000000000 +0900
+@@ -0,0 +1,63 @@
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <unistd.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <string.h>
++#include <dirent.h>
++#include <math.h>
++#include <fitshead.h>
++#include "mtbl.h"
++#include "montage.h"
++#include "hdr_rec.h"
++
++#define MAXLEN 4096
++
++int   debug;
++int   showbad;
++int   recursiveMode;
++int   processAreaFiles;
++int   showCorners;
++int   cntr = 1;
++int   failed;
++int   hdrlen;
++FILE *tblf;
++FILE *ffields;
++
++typedef struct
++{
++ char name  [128];
++ char type  [128];
++ char value [128];
++ char defval[128];
++ int  width;
++}
++FIELDS;
++
++FIELDS *fields;
++int     nfields;
++
++int     badwcs = 0;
++
++struct Hdr_rec hdr_rec;
++
++
++void print_rec(struct Hdr_rec*);
++int get_hdr (char *fname, struct Hdr_rec *hdr_rec, char *msg);
++
++
++int main(int argc, char **argv)
++{
++    char msg[MAXLEN];
++
++    if (argc!=2) {
++	fprintf(stderr, "usage: mImgHdr file\n");
++	exit(1);
++    }
++    tblf = stdout;
++    get_hdr(argv[1], &hdr_rec, msg);
++    //print_rec(&hdr_rec);
++}
++
++
+diff -wurN Montage_v3.3.orig/util/FixNaN/mFixNaN.c Montage_v3.3/util/FixNaN/mFixNaN.c
+--- Montage_v3.3.orig/util/FixNaN/mFixNaN.c	2009-12-11 12:54:51.000000000 +0900
++++ Montage_v3.3/util/FixNaN/mFixNaN.c	2011-01-10 16:45:56.000000000 +0900
+@@ -66,7 +66,7 @@
+
+ int main(int argc, char **argv)
+ {
+-   int       i, j, countRange, countNaN, status;
++   int       i, j, countRange, countNaN, status=0;
+    int       haveMinMax, haveVal, writeOutput;
+    long      fpixel[4], nelements;
+    double   *inbuffer;
