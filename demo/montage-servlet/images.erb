@@ -1,0 +1,23 @@
+<html>
+<p>
+<%
+require "fileutils"
+shrink=10
+%>
+<h3>Input Images (1/<%=shrink%> scale)</h3>
+<%
+Dir.glob("r/*.fits") do |f|
+   jpg = f.sub(/\.fits?$/,".jpg")
+   if !File.exist?(jpg)
+     sfits = f.sub(/\.fits?$/,".sfits")
+     system "mShrink #{f} #{sfits} #{shrink}"
+     system "mJPEG -ct 0 -gray #{sfits} -0.1s '99.8%' gaussian -out #{jpg}"
+     FileUtils.rm(sfits)
+   end
+%>
+<div><a href="<%=f%>"><%=f%></a>:<img src="<%=jpg%>"></div>
+<% end %>
+</p>
+<h3>Workflow Products</h3>
+<p id="attach"></p>
+</html>

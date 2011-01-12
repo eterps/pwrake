@@ -1,0 +1,33 @@
+Source Extraction from Tiled images           Masahiro TANAKA 2010-12-22
+
+* Downlowad & Compile Montage
+
+ $ wget http://montage.ipac.caltech.edu/download/Montage_v3.3.tar.gz
+ $ tar xvzf Montage_v3.3.tar.gz
+ $ patch -p0 < ../Montage_v3.3.patch
+ $ cd Montage_v3.3/
+ $ make
+ $ cd ..
+
+* Downlowad & Compile SExtractor
+
+ $ wget ftp://ftp.iap.fr/pub/from_users/bertin/sextractor/sextractor-2.5.0.tar.gz
+ $ tar xvzf sextractor-2.5.0.tar.gz
+ $ ./configure
+ $ make
+ $ cd ..
+
+* Compile reduce_match
+
+ $ cd bin
+ $ make
+ $ cd ..
+
+* Run workflow
+
+ $ ./pwrake NODEFILE=nodefile
+
+* Show result files
+
+ $ ls c
+

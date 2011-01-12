@@ -40,9 +40,16 @@ thread = Thread.start do
 
 end
 
+WEBrick::HTTPServlet::FileHandler.add_handler("erb", WEBrick::HTTPServlet::ERBHandler)
 
 SERVER = HTTPServer.new({ :DocumentRoot => '.',
                           :Port => 13390 })
+
+SERVER.config[:MimeTypes]["erb"]  = "text/html"
+SERVER.config[:MimeTypes]["fits"] = "application/fits"
+SERVER.config[:MimeTypes]["fit"]  = "application/fits"
+SERVER.config[:MimeTypes]["hdr"]  = "text/plain"
+SERVER.config[:MimeTypes]["tbl"]  = "text/plain"
 
 class StartServlet < HTTPServlet::AbstractServlet
   def do_POST(req, res)

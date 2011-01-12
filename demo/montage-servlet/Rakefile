@@ -228,7 +228,7 @@ end
 ### Convert the result FITS image to JPEG image
 desc "mJPEG"
 file "shrunk.jpg" => ["shrunk.fits"] do |t|
-  sh "mJPEG -ct 0 -gray #{t.prerequisites[0]} -1.5s 60s gaussian -out #{t.name}" do |*a| end
+  sh "mJPEG -ct 0 -gray #{t.prerequisites[0]} -0.1s '99.8%' gaussian -out #{t.name}" do |*a| end
 end
 
 CLEAN.include %w[ p d c s t ]
