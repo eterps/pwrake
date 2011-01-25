@@ -38,7 +38,7 @@ module Montage
         when /\.(\d+)\.(\d+)\./
           idx = $1,$2
         else
-          puts "unmach1 : #{name}" 
+          puts "unmach1 : #{name}"
           raise
         end
         if /a=#{n}, b=#{n}, c=#{n}, crpix1=#{n}, crpix2=#{n}, xmin=#{n}, xmax=#{n}, ymin=#{n}, ymax=#{n}, xcenter=#{n}, ycenter=#{n}, npixel=#{n}, rms=#{n}, boxx=#{n}, boxy=#{n}, boxwidth=#{n}, boxheight=#{n}, boxang=#{n}/ =~ r
@@ -91,6 +91,7 @@ module Montage
       f.puts "| cntr |      ra     |     dec     |      cra     |     cdec     |naxis1|naxis2| ctype1 | ctype2 |     crpix1    |     crpix2    |    crval1   |    crval2   |      cdelt1     |      cdelt2     |   crota2    |equinox |    size    | hdu  | fname"+" "*nspc+"|"
       f.puts "| int  |    double   |    double   |      char    |    char      | int  | int  |  char  |  char  |     double    |     double    |    double   |    double   |      double     |      double     |   double    |  double|     int    | int  | char "+" "*nspc+"|"
       imgtbl.each_with_index{|x,i| f.puts " %6d%s"%[i,x[7..-1]]}
+      f.flush
     end
   end
 
@@ -118,6 +119,7 @@ module Montage
           fn = c[4].sub(/^diff\.(.*)\.fits$/,'fit.\1.txt')
           w.printf " %7d %7d %21s \n",c[0],c[1],fn
         end
+        w.flush
       end
     end
   end
