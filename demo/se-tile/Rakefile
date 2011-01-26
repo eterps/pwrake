@@ -38,9 +38,7 @@ SRC_FITS.each do |img|
   desc "SExtractor"
   file cat => img_fix do |t|
     sh "sex -c default.sex #{t.prerequisites[0]} -CATALOG_NAME #{t.name}" do |ok,status|
-    #sh "touch #{t.name}" do |ok,status|
       if ok
-        #puts t.prerequisites[0]
         Montage.collect_imgtbl_fullname(t.prerequisites[0], IMGTBL)
         CAT_HASH[t.name] = t.name
       end
@@ -50,6 +48,8 @@ SRC_FITS.each do |img|
   IMG_HASH[base] = img_fix
   CAT_HASH[base] = cat
 end
+
+# task :default => SRC_CAT
 
 #### List projected files
 #file "images.tbl" => SRC_CAT do |t|
