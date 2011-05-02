@@ -6,7 +6,7 @@ task :default => "mosaic.jpg"
 #task :default => "shrunk.jpg"
 
 if ENV['MONTAGE_ORIGINAL']
-  Montage.original_workflow = true 
+  Montage.original_workflow = true
   puts "Montage.original_workflow = true"
 else
   Montage.original_workflow = false
@@ -20,27 +20,30 @@ ENV['PATH'] = "#{dir.last}:"+ENV['PATH']
 # Directory of input files
 INPUT_DIR = ENV["INPUT_DIR"] || "m101/rawdir"
 # Parameter file for the coorinate of a result image
-REGION_HDR = "m101/template.hdr"
+REGION_HDR = ENV["REGION_HDR"] || "m101/template.hdr"
 #REGION_HDR = "#{INPUT_DIR}/region.hdr"
 # Parameter file for a shrunk image
-SHRUNK_HDR = "#{INPUT_DIR}/shrunken.hdr"
+SHRUNK_HDR = ENV["SHRUNK_HDR"] || "#{INPUT_DIR}/shrunken.hdr"
 # List of input FITS image files
 SRC_FITS = FileList["#{INPUT_DIR}/*.fits"]
 
 # Get image size
-File.open(REGION_HDR) do |f|
-  while l=f.gets
-    eval l if /(NAXIS[12])\s*=\s*(\d+)/ =~ l
+if File.exist?(REGION_HDR)
+  File.open(REGION_HDR) do |f|
+    while l=f.gets
+      eval l if /(NAXIS[12])\s*=\s*(\d+)/ =~ l
+    end
   end
-end
 
-# Tile parameter
-TILE_NX = ENV["TILE_NX"]
-TILE_NY = ENV["TILE_NY"]
-TILE_PIXEL=1000
-SHRINK_FACTOR=10
-NX = [(TILE_NX || NAXIS1/TILE_PIXEL).to_i, 10].max
-NY = [(TILE_NY || NAXIS2/TILE_PIXEL).to_i, 10].max
+  # Tile parameter
+  TILE_NX = ENV["TILE_NX"]
+  TILE_NY = ENV["TILE_NY"]
+  TILE_PIXEL=1000
+  SHRINK_FACTOR=10
+  NX = [(TILE_NX || NAXIS1/TILE_PIXEL).to_i, 10].max
+  NY = [(TILE_NY || NAXIS2/TILE_PIXEL).to_i, 10].max
+  puts "NX=#{NX}, NY=#{NY}"
+end
 
 # Make directories
 mkdir_p ["p","d","c","s","t"]
@@ -93,7 +96,7 @@ file "fits.tbl" => "diffs.tbl" do
 
   # List fit parameters
   task :fits_tbl_invoke => DIFF_FITS do
-    Montage.write_fits_tbl(FIT_TBL, "fittxt.tbl", "fits.tbl") 
+    Montage.write_fits_tbl(FIT_TBL, "fittxt.tbl", "fits.tbl")
   end.invoke
 
   task "fits.tbl" => :fits_tbl_invoke
@@ -109,7 +112,7 @@ file "cimages.tbl" => ["corrections.tbl","pimages.tbl"] do
   C_IMGTBL=[]
   C_FITS=[]
 
-  FileList["p/*.p.fits"].each do |s|    
+  FileList["p/*.p.fits"].each do |s|
     dst = s.sub(/p\/(.*)\.p\.fits/, 'c/\1.c.fits')
     file dst => [s,"pimages.tbl","corrections.tbl"] do |t|
       p0,p1,p2 = t.prerequisites
@@ -156,7 +159,7 @@ file "simages.tbl" => "cimages.tbl" do
         a = t.prerequisites.join(" ")
         sh "mAdd -e -p c #{a} #{t.name} "
       end
- 
+
       # Shrink each tile image
       shrunk_fits = tile_fits.sub(/t\/(.*)\.t\.fits/, 's/\1.s.fits')
       file shrunk_fits => [tile_fits,tile_tbl] do |t|
@@ -183,7 +186,6 @@ end
 ### Convert the result FITS image to JPEG image
 file "mosaic.jpg" => "mosaic.fits" do |t|
   sh "mJPEG -ct 0 -gray #{t.prerequisites[0]} -1.5s 60s gaussian -out #{t.name}" do |*a| end
-end
 end
 
 ### Add all the images

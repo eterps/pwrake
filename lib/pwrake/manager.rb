@@ -109,11 +109,13 @@ module Pwrake
           while l = f.gets
             l = $1 if /^([^#]+)#/ =~ l
             host, ncore, group = l.split
-            ncore = (ncore || 1).to_i
-            group = (group || 0).to_i
-            tmplist << ([host] * ncore.to_i)
-            @host_group[group] ||= []
-            @host_group[group] << host
+            if host
+              ncore = (ncore || 1).to_i
+              group = (group || 0).to_i
+              tmplist << ([host] * ncore.to_i)
+              @host_group[group] ||= []
+              @host_group[group] << host
+            end
           end
         }
         #

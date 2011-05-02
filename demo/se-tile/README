@@ -13,6 +13,7 @@ Source Extraction from Tiled images           Masahiro TANAKA 2010-12-22
 
  $ wget ftp://ftp.iap.fr/pub/from_users/bertin/sextractor/sextractor-2.5.0.tar.gz
  $ tar xvzf sextractor-2.5.0.tar.gz
+ $ cd sextractor-2.5.0
  $ ./configure
  $ make
  $ cd ..
