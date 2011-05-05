@@ -1,5 +1,4 @@
 require "thread"
-#require "pp"
 
 module Pwrake
 
@@ -233,12 +232,8 @@ module Rake
 
     def invoke(*args)
       log "--- Task#invoke(#{args.inspect}) Pwrake.manager.threads=#{Pwrake.manager.threads}"
-      #if Pwrake.manager.threads == 1
-      #  invoke_orig(*args)
-      #else
-        task_args = TaskArguments.new(arg_names, args)
-        Pwrake.manager.operator.invoke(self,task_args)
-      #end
+      task_args = TaskArguments.new(arg_names, args)
+      Pwrake.manager.operator.invoke(self,task_args)
     end
   end
 

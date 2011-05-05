@@ -50,7 +50,6 @@ class Invoker
         io = IO.popen(cmd)
         $stderr.puts "io.pid=#{io.pid}" if $debug
         @cpid = io.pid
-        # thread = Thread.new(@cpid){|x| Process.wait(x) rescue nil }
         while x = io.gets
           puts "#{@idx}: #{x}"
           $stderr.puts "out:#{@idx}: #{x.inspect}" if $debug
@@ -59,10 +58,8 @@ class Invoker
         status = $?
         @cpid = nil
         io.close
-        # thread.join
         $stderr.puts "status:#{@idx} #{status}" if $debug
         code = (status) ? status.exitstatus : "unknown"
-        # puts "?:#{@idx} #{code}"
         fin(code)
       end
     end
@@ -76,16 +73,10 @@ class Dispatcher
     @pid = {}
     @pipe_w = {}
     n.times{|i| fork(i)}
-    #at_exit{self.finish}
   end
 
   def finish
     $stderr.puts "finish" if $debug
-    #@pid.each do |i,pid|
-    #  if pid
-    #    Process.kill("TERM",pid)
-    #  end
-    #end
     @pipe_w.each do |i,pipe|
       if pipe and !pipe.closed?
         pipe.puts("exit")
@@ -97,17 +88,12 @@ class Dispatcher
   end
 
   def fork(i)
-    #if @pipe_w[i]
-    #  $stderr.puts "id #{i} : already exits"
-    #else
-      pipes = IO.pipe
-      @pipe_w[i] = pipes[1]
-      @pid[i] = Process.fork do
-        # $stderr.puts "fork #{i}"
-        Invoker.new(i,pipes[0]).wait
-        exit
-      end
-    #end
+    pipes = IO.pipe
+    @pipe_w[i] = pipes[1]
+    @pid[i] = Process.fork do
+      Invoker.new(i,pipes[0]).wait
+      exit
+    end
   end
 
   def close(i)
@@ -149,7 +135,6 @@ class Dispatcher
         else
           err i, "channel id: #{i} already exists"
         end
-        # $stderr.puts self.inspect
       when /^kill:(\d+) ([A-Z]+)$/o
         i = Regexp.last_match[1].to_i(10)
         sig = Regexp.last_match[2]

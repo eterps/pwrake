@@ -6,30 +6,6 @@ module Pwrake
 
     @@local_mp = nil
 
-=begin
-    def initialize(host,remote_mp=nil)
-      @remote_mp = Pathname.new(remote_mp)
-      super(host)
-      if @remote_mp
-        system "mkdir -p #{@remote_mp}"
-        system "gfarm2fs #{@remote_mp}"
-        path = ENV['PATH'].gsub( /#{self.class.mountpoint}/, @remote_mp.to_s )
-        system "export PATH=#{path}"
-      end
-      self
-    end
-
-    def close
-      if @remote_mp
-        system "cd"
-        system "fusermount -u #{@remote_mp}"
-        system "rmdir #{@remote_mp}"
-      end
-      super
-      self
-    end
-=end
-
     def on_start
       @remote_mp = "%s%03d" % [mountpoint,@idx]
       path = ENV['PATH'].gsub( /#{self.class.mountpoint}/, @remote_mp.to_s )
@@ -134,34 +110,8 @@ module Pwrake
         result
       end
 
-=begin
-      def connect_list( hosts )
-        # set_mountpoint
-        tm = Pwrake.timer("connect_gfarm")
-        th = []
-        connections = []
-        hosts.each_with_index{ |h,i|
-          mnt_dir = "%s%03d" % [ mountpoint, i ]
-          th << Thread.new(h,mnt_dir) {|x,y|
-            if Rake.application.options.single_mp
-              puts "# create Channel to #{x}"
-              ssh = self.new(x)
-            else
-              puts "# create Channel to #{x}:#{y}"
-              ssh = self.new(x,y)
-            end
-            ssh.cd_cwd
-            connections << ssh
-          }
-        }
-        th.each{|t| t.join}
-        tm.finish
-        connections
-      end
-=end
-
     end # class << self
-    
+
   end # class GfarmChannel
 
 end # module Pwrake

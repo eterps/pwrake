@@ -5,7 +5,6 @@ module Pwrake
     def initialize
       @nodes = []
       @edges = []
-      # @node_id = {}
       @filenode_id = {}
       @tasknode_id = {}
       @node_name = {}
@@ -44,17 +43,6 @@ module Pwrake
       name.sub(/H\d+/,'').sub(/object\d+/,"")
     end
 
-    #def push_node( name )
-    #  if @node_id[name].nil?
-    #    tag = "T#{@count}"
-    #    @node_id[name] = tag
-    #    @node_name[tag] = name
-    #    # @nodes.push "#{tag} [label=\"#{trim(name)}\", style=filled, fillcolor=magenta];"
-    #    @nodes.push "#{tag} [label=\"#{trim(name)}\", shape=box];"
-    #    @count += 1
-    #  end
-    #end
-
     def push_filenode( name )
       if @filenode_id[name].nil?
         tag = "T#{@count}"
@@ -75,30 +63,6 @@ module Pwrake
         @nodes.push "#{tag} [label=\"#{label}\", shape=ellipse];"
       end
     end
-
-    #def push_edge( name, target )
-    #  if target
-    #    @edges.push "#{@node_id[name]} -> #{@node_id[target]};"
-    #  end
-    #end
-
-    #def push_edge( name, target )
-    #  if target
-    #    if n2 = @tasknode_id[target]
-    #      n1 = @filenode_id[name]
-    #    elsif n1 = @tasknode_id[name]
-    #      n2 = @filenode_id[target]
-    #    else
-    #      n1 = @filenode_id[name]
-    #      n2 = @filenode_id[target]
-    #    end
-    #    @edges.push "#{n1} -> #{n2};"
-    #    if n1 = @tasknode_id[name]
-    #      n2 = @filenode_id[name]
-    #      @edges.push "#{n1} -> #{n2};"
-    #    end
-    #  end
-    #end
 
     def push_fileedge( name, target )
       if target

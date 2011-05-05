@@ -40,8 +40,6 @@ module Pwrake
     attr_reader :logger
     attr_reader :gfarm
 
-    #attr_accessor :scheduler_class
-
     def scheduler_class=(a)
       @scheduler_class=a
     end
