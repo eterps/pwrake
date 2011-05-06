@@ -147,7 +147,7 @@ module Pwrake
       #
       @gfarm_mountpoint = ENV["GFARM_MOUNTPOINT"] || ENV["GFARM_MP"]
       #
-      if (ENV["AFFINITY"] || ENV["AF"]).downcase = "off"
+      if (ENV["AFFINITY"] || ENV["AF"] || "").downcase == "off"
         @affinity = false
       end
     end
