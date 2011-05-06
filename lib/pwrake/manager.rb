@@ -100,12 +100,14 @@ module Pwrake
       #
       @host_group = []
       if @hostfile
+        require "socket"
         tmplist = []
         File.open(@hostfile) {|f|
           while l = f.gets
             l = $1 if /^([^#]+)#/ =~ l
             host, ncore, group = l.split
             if host
+              host  = Socket.gethostbyname(host)[0]
               ncore = (ncore || 1).to_i
               group = (group || 0).to_i
               tmplist << ([host] * ncore.to_i)

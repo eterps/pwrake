@@ -143,7 +143,6 @@ module Pwrake
         @size += 1
       end
 
-      #require "pp"
       def pop(host)
         q = @q[host]
         if q && !q.empty?
