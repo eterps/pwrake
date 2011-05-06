@@ -4,8 +4,7 @@ module Pwrake
     include Log
 
     def on_trace(tasks)
-      #puts "--- tasks = #{tasks.inspect}"
-      if Pwrake.manager.gfarm # and @@affinity
+      if Pwrake.manager.gfarm and Pwrake.manager.affinity
         gfwhere_result = {}
         filenames = []
         tasks.each do |t|
@@ -13,49 +12,29 @@ module Pwrake
             filenames << name
           end
         end
-        #x.name } #GfarmSSH.local_to_gfarm_path(x.name)}
-        #puts "--- filenames = #{filenames.inspect}"
         gfwhere_result = GfarmSSH.gfwhere(filenames)
-        #puts "--- gfwhere_result = #{gfwhere_result.inspect}"
         tasks.each do |t|
           if t.kind_of? Rake::FileTask and prereq_name = t.prerequisites[0]
             t.locality = gfwhere_result[GfarmSSH.gf_path(prereq_name)]
           end
         end
-        #new_tasks = tasks.map do |t|
-        #  if t.kind_of? Rake::FileTask and prereq_name = t.prerequisites[0]
-        #    hosts = gfwhere_result[GfarmSSH.gf_path(prereq_name)]
-        #    QueuedTask.new(t,hosts)
-        #  else
-        #    t
-        #  end
-        #end
-        #tasks = new_tasks
       end
-      #puts "--- tasks = #{tasks.inspect}"
       tasks
     end
 
     def on_execute(task)
-      #return task unless task.kind_of? QueuedTask
-      #t = task.task
       if task.kind_of? Rake::FileTask and prereq_name = task.prerequisites[0]
-        #puts "--- task = #{task.inspect}"
         conn = Thread.current[:connection]
-        #puts "--- conn = #{conn.inspect}"
         scheduled = task.locality
-        #puts "--- scheduled = #{scheduled.inspect}"
         if conn
           exec_host = conn.host
-          #puts "--- exec_host = #{exec_host.inspect}"
           Pwrake.manager.counter.count( scheduled, exec_host )
           if Pwrake.manager.gfarm and conn
             if scheduled and scheduled.include? exec_host
-              compare = "==" 
+              compare = "=="
             else
               compare = "!="
             end
-            #puts "compare = #{compare}"
             log "-- access to #{prereq_name}: gfwhere=#{scheduled.inspect} #{compare} exec=#{exec_host}"
           end
         end
@@ -65,7 +44,6 @@ module Pwrake
 
     def on_thread_end
       puts "-- $cv.broadcast"
-      # $cv.broadcast
     end
 
     def queue_class
@@ -170,9 +148,7 @@ module Pwrake
         q = @q[host]
         if q && !q.empty?
           j = q.shift
-          #if j.respond_to? :assigned
-            j.assigned.each{|x| @q[x].delete_if{|x| j.equal? x}}
-          #end
+          j.assigned.each{|x| @q[x].delete_if{|x| j.equal? x}}
           @size -= 1
           return j
         else
@@ -214,35 +190,3 @@ module Pwrake
   end # class AffinityQueue
 
 end # module Pwrake
-
-
-if __FILE__ == $0
-  require "pp"
-  require "thread"
-  # test
-  hosts = (0..3).map{|i| "host%02d.a"%i}
-  hosts.concat( (0..3).map{|i| "host%02d.b"%i} )
-  q = Pwrake::AffinityQueue.new(hosts)
-
-  def push(q,host,task)
-    q.push(Pwrake::QueuedTask.new(task,host))
-  end
-
-  push(q, "host00.a", x=proc{puts "-- proc1 called --"})
-  push(q, %w[host01.a host03.a], proc{puts "-- proc2 called --"})
-  push(q, %w[host03.a host04.a host08.a], proc{puts "-- proc3 called --"})
-  push(q, nil, proc{puts "-- proc4 called --"})
-  q.push(proc{puts "-- proc4 called --"})
-  push(q, %w[host01.b host05.b], proc{puts "-- proc5 called --"})
-  pp q
-
-  q.pop("host01.a").call
-  q.pop("host02.b").call
-  q.pop("host02.a").call
-  q.pop("host05.a").call
-  q.pop.call
-  push(q, "host02.a", proc{puts "-- proc.end called --"})
-  q.finish
-  q.pop("host02.a").call
-  pp q
-end

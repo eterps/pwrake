@@ -47,7 +47,6 @@ module Pwrake
         if !@io.closed?
           @io.puts("exit")
           @io.close
-          #puts "#{inspect} closed"
         end
         OPEN_LIST.delete(__id__)
       end
@@ -90,13 +89,8 @@ module Pwrake
 
     END {
       OPEN_LIST.map do |k,v|
-        #Thread.new(v) do |s|
-          #Thread.pass
-          v.close
-        end
-      #end.each do |t|
-      #  t.join
-      #end
+        v.close
+      end
     }
 
     private

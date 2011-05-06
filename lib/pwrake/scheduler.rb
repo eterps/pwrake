@@ -109,7 +109,6 @@ module Pwrake
     end
 
     def on_execute(a)
-      # puts "-- on_execute #{a.inspect}"
       if a.kind_of? TaskQueue
         a.task
       else
@@ -131,5 +130,4 @@ module Pwrake
     end
   end
 
-  #manager.scheduler_class = Scheduler
 end

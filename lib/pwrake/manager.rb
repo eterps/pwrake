@@ -7,10 +7,7 @@ module Rake
       pwrake = nil
       begin
         pwrake = Pwrake.manager
-        #pwrake.setup
-        #pwrake.setup_dag
         top_level_orig
-        #end
       ensure
         puts "** ensure"
         pwrake.finish if pwrake
@@ -42,8 +39,7 @@ module Pwrake
     attr_reader :threads
     attr_reader :logger
     attr_reader :gfarm
-
-    #attr_accessor :scheduler_class
+    attr_reader :affinity
 
     def scheduler_class=(a)
       @scheduler_class=a
@@ -89,8 +85,6 @@ module Pwrake
 
     def setup_logger
       if @logfile = ENV["LOGFILE"] || ENV["LOG"]
-        # @logfile = "log/" + logfile + ".log"
-        # mkdir_p "log"
         mkdir_p File.dirname(@logfile)
         @logger.open(@logfile)
         log "logfile=#{@logfile}"
@@ -103,7 +97,6 @@ module Pwrake
     def setup_hostlist
       @hostfile = ENV["HOSTFILE"] || ENV["HOSTLIST"] || ENV["HOSTS"] ||
         ENV["NODEFILE"] || ENV["NODELIST"] || ENV["NODES"]
-      # @hostlist = HostList.new(@hostfile)
       #
       @host_group = []
       if @hostfile
@@ -147,16 +140,16 @@ module Pwrake
         @affinity = true
         log "FILESYSTEM=Gfarm"
         require "pwrake/affinity"
-        #
-        #mountpoint = ENV["MOUNTPOINT"] || ENV["MP"]
-        #@single_mp = mountpoint && /single/=~mountpoint
-        #log "MOUNTPOINT=#{mountpoint}"
       else
         @gfarm = false
         log "FILESYSTEM=non-Gfarm"
       end
       #
       @gfarm_mountpoint = ENV["GFARM_MOUNTPOINT"] || ENV["GFARM_MP"]
+      #
+      if (ENV["AFFINITY"] || ENV["AF"]).downcase = "off"
+        @affinity = false
+      end
     end
 
 
@@ -167,8 +160,6 @@ module Pwrake
         @connection_class = GfarmSSH
       else
         @connection_class = SSH
-        #require "pwrake/torque"
-        #@connection_class = Torque # SSH
       end
       time_init_ssh = Time.now
       log "@connection_class = #{@connection_class}"
@@ -179,15 +170,8 @@ module Pwrake
     def finish
       if @prepare_done
         @counter.print
-        #if @connection_list.size > 2
-        #  @connection_list.map{|v| Thread.new(v){|s| s.close }}.each{|t| t.join}
-        #else
-        #  @connection_list.map{|v| v.close }
-        #end
         @logger.close
         if @logfile
-          #mkdir_p "log"
-          #cp @logfile, "log/"
           $stderr.puts "log file : "+@logfile
         end
       end
