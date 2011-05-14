@@ -14,7 +14,7 @@ module Rake
         pwrake = Pwrake.manager
         top_level_orig
       ensure
-        $stderr.puts "** ensure"
+        #log "** ensure"
         pwrake.finish if pwrake
       end
     end
@@ -68,6 +68,30 @@ module Rake
         Pwrake.manager.operator.invoke(self,task_args)
       #end
     end
+
+    alias execute_orig :execute
+
+    # Execute the actions associated with this task.
+    def execute(args=nil)
+      args ||= EMPTY_TASK_ARGS
+      if application.options.dryrun
+        log "** Execute (dry run) #{name}"
+        return
+      end
+      if application.options.trace
+        log "** Execute #{name}"
+      end
+      application.enhance_with_matching_rule(name) if @actions.empty?
+      @actions.each do |act|
+        case act.arity
+        when 1
+          act.call(self)
+        else
+          act.call(self, args)
+        end
+      end
+    end
+
   end
 
 end # module Rake

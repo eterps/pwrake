@@ -3,8 +3,6 @@ require "pathname"
 module Pwrake
 
   class GfarmSSH < SSH
-    include Log
-
     @@local_mp = nil
 
     def initialize(host,remote_mp=nil)
@@ -126,10 +124,10 @@ module Pwrake
         mnt_dir = "%s%03d" % [ GfarmSSH.mountpoint, i ]
         th << Thread.new(h,mnt_dir) {|x,y|
           if Rake.application.options.single_mp
-            log "# create SSH to #{x}"
+            Log.log "# create SSH to #{x}"
             ssh = GfarmSSH.new(x)
           else
-            log "# create SSH to #{x}:#{y}"
+            Log.log "# create SSH to #{x}:#{y}"
             ssh = GfarmSSH.new(x,y)
           end
           ssh.cd_cwd
