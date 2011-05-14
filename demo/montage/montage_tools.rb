@@ -70,7 +70,7 @@ module Montage
       #q = sh "mImgHdr #{t.name}"
       q = `mImgHdr #{t.name}`
       if q
-        ary << q+" "+File.basename(t.name)
+        ary << q.chomp+" "+File.basename(t.name)
       else
         puts "IMGTBL fail"
       end
@@ -137,5 +137,37 @@ module Montage
   end
 
   module_function :fitplane
+
+  def read_image_tbl(table)
+    r = open(table,"r")
+    l = r.gets
+    if /^\\/ =~ l
+        l = r.gets
+    end
+
+    columns = []
+    l.scan( /\|([^|]*)/ ){
+        columns << [$1.strip, $~.offset(1)]
+    }
+
+    pos = /\|(\s*fname\s*)\|/ =~ l
+    len = $1.size
+
+    while /^\|/ =~ l
+        l = r.gets
+    end
+
+    table = []
+    while l
+        table << row = {}
+        columns.each do |name,ofs|
+          row[name] = l[ofs[0]..ofs[1]].strip
+        end
+        l = r.gets
+    end
+    r.close
+    table
+  end
+  module_function :read_image_tbl
 
 end
