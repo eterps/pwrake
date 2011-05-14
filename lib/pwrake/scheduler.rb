@@ -57,22 +57,27 @@ module Pwrake
     end
 
     def pop(host=nil)
-      loop do
-        @m.synchronize do
+      @m.synchronize do
+        loop do
           if @th_end.first == Thread.current
             @th_end.shift
+            return false
+          elsif @finished # no task in queue
+            @cv.signal
             return false
           elsif task = @q.pop(host)
             @cv.signal
             return task
-          elsif @finished # no task in queue
+          end
+
+          @cv.wait(@m)
+
+          if task = @q.pop(host)
             @cv.signal
-            return false
+            return task
           elsif task = @q.pop_alt(host)
             @cv.signal
             return task
-          else
-            @cv.wait(@m)
           end
         end
       end
