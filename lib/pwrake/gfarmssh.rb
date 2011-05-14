@@ -3,6 +3,7 @@ require "pathname"
 module Pwrake
 
   class GfarmSSH < SSH
+    include Log
 
     @@local_mp = nil
 
@@ -112,7 +113,6 @@ module Pwrake
         x = Kernel.backquote(cmd)
         x.split("\n\n").each(&parse_proc)
       end
-      # puts "result.size=#{result.size}"
       result
     end
 
@@ -126,10 +126,10 @@ module Pwrake
         mnt_dir = "%s%03d" % [ GfarmSSH.mountpoint, i ]
         th << Thread.new(h,mnt_dir) {|x,y|
           if Rake.application.options.single_mp
-            puts "# create SSH to #{x}"
+            log "# create SSH to #{x}"
             ssh = GfarmSSH.new(x)
           else
-            puts "# create SSH to #{x}:#{y}"
+            log "# create SSH to #{x}:#{y}"
             ssh = GfarmSSH.new(x,y)
           end
           ssh.cd_cwd
