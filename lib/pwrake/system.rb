@@ -28,7 +28,7 @@ module FileUtils
     end
     options[:noop]    ||= RakeFileUtils.nowrite_flag
     rake_check_options options, :noop, :verbose
-    rake_output_message cmd.join(" ") if options[:verbose]
+    Pwrake.manager.logger.puts cmd.join(" ") if options[:verbose]
     unless options[:noop]
       res,status = pwrake_system(*cmd)
       block.call(res, status)
