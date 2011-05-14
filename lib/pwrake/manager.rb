@@ -64,7 +64,13 @@ module Pwrake
 
     def setup_logger
       if @logfile = ENV["LOGFILE"] || ENV["LOG"]
-        mkdir_p File.dirname(@logfile)
+        logdir = File.dirname(@logfile)
+        if !File.directory?(logdir)
+          mkdir_p logdir
+        end
+        # turn trace option on
+        Rake.application.options.trace = true
+        Rake.application.options.verbose = true
         @logger.open(@logfile)
         log "logfile=#{@logfile}"
       else

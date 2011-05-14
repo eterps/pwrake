@@ -14,7 +14,6 @@ module Pwrake
 
     @@nice = "nice"
     @@shell = "sh"
-    STDOUT_LOCK = Mutex.new
 
     def initialize(*arg)
       @host = 'localhost'
@@ -103,7 +102,7 @@ module Pwrake
           @status = Integer(x[TLEN+1..-1])
           break
         end
-        STDOUT_LOCK.synchronize do
+        LOCK.synchronize do
           puts x
         end
       end

@@ -22,13 +22,13 @@ module FileUtils
       }
     end
     if RakeFileUtils.verbose_flag == :default
-      options[:verbose] = false
+      options[:verbose] = true
     else
       options[:verbose] ||= RakeFileUtils.verbose_flag
     end
     options[:noop]    ||= RakeFileUtils.nowrite_flag
     rake_check_options options, :noop, :verbose
-    Pwrake.manager.logger.puts cmd.join(" ") if options[:verbose]
+    pwrake_output_message cmd.join(" ") if options[:verbose]
     unless options[:noop]
       res,status = pwrake_system(*cmd)
       block.call(res, status)
@@ -51,6 +51,16 @@ module FileUtils
     tm.finish("status=%s cmd=%s"%[status,cmd_log])
     [res,status]
   end
+  private :pwrake_system
+
+
+  def pwrake_output_message(message)
+    Pwrake::LOCK.synchronize do
+      $stderr.puts(message)
+    end
+  end
+  private :pwrake_output_message
+
 end
 
 

@@ -1,10 +1,11 @@
 module Pwrake
 
+  LOCK = Mutex.new
+
   class Logger
     include Pwrake::Log
 
     def initialize(arg=nil)
-      @lock = Mutex.new
       @out=nil
       File.open(arg) if arg
     end
@@ -20,8 +21,9 @@ module Pwrake
         @closeable=true
       end
       @start_time = Time.now
-      @lock.synchronize do
-        @out.puts "LogStart="+time_str(@start_time)
+      @trace = Rake.application.options.trace
+      LOCK.synchronize do
+        @out.puts "LogStart="+time_str(@start_time) if @trace
       end
     end
 
@@ -31,15 +33,15 @@ module Pwrake
         t1 = time_str(start_time)
         t2 = time_str(finish_time)
         elap = finish_time - start_time
-        @lock.synchronize do
-          @out.print "#{str} : start=#{t1} end=#{t2} elap=#{elap}\n"
+        LOCK.synchronize do
+          @out.puts "#{str} : start=#{t1} end=#{t2} elap=#{elap}" if @trace
         end
       end
     end
 
     def puts(s)
       if @out
-        @lock.synchronize do
+        LOCK.synchronize do
           @out.puts(s)
         end
       end
