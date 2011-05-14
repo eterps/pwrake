@@ -41,14 +41,14 @@ module FileUtils
 
     conn = Thread.current[:connection]
     if conn.kind_of?(Pwrake::Shell)
-      res    = conn.execute(*cmd)
+      res    = conn.system(*cmd)
       status = conn.status
     else
       res    = system(*cmd)
-      status = $?
+      status = $?.exitstatus
     end
 
-    tm.finish("status=%s cmd=%s"%[status.exitstatus,cmd_log])
+    tm.finish("status=%s cmd=%s"%[status,cmd_log])
     [res,status]
   end
 end
@@ -67,10 +67,10 @@ module PwrakeFileUtils
       status = conn.status
     else
       res    = Kernel.backquote(cmd)
-      status = $?
+      status = $?.exitstatus
     end
 
-    tm.finish("status=%s cmd=%s"%[status.exitstatus,cmd_log])
+    tm.finish("status=%s cmd=%s"%[status,cmd_log])
     res
   end
 end
