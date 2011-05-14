@@ -37,21 +37,17 @@ module Rake
     alias standard_rake_options_orig :standard_rake_options
 
     def standard_rake_options
-      standard_rake_options_orig.map do |a|
-        if a.find('--version')
-          a = a.map do |x|
-            if x.kind_of?(Proc)
-              x = lambda { |value|
-                puts "rake, version #{RAKEVERSION}"
-                puts "pwrake, version #{Pwrake::PWRAKEVERSION}"
-                exit
-              }
-            end
-            x
-          end
+      opts = standard_rake_options_orig
+      opts.each_with_index do |a,i|
+        if a[0] == '--version'
+          a[3] = lambda { |value|
+            puts "rake, version #{RAKEVERSION}"
+            puts "pwrake, version #{Pwrake::PWRAKEVERSION}"
+            exit
+          }
         end
-        a
       end
+      opts
     end
 
   end # class Application
