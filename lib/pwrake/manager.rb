@@ -1,24 +1,3 @@
-module Rake
-
-  class Application
-    alias top_level_orig :top_level
-
-    def top_level
-      pwrake = nil
-      begin
-        pwrake = Pwrake.manager
-        top_level_orig
-      ensure
-        puts "** ensure"
-        pwrake.finish if pwrake
-      end
-    end
-
-    attr_reader :pwrake
-  end
-end
-
-
 module Pwrake
 
   def self.manager

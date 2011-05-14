@@ -10,7 +10,7 @@ module Pwrake
     end
 
     def open(file)
-      @out.close if @out && @cloasable
+      @out.close if @out && @closeable
       case file
       when IO
         @out=file
@@ -40,7 +40,7 @@ module Pwrake
     def puts(s)
       if @out
         @lock.synchronize do
-          @out.puts(s) 
+          @out.puts(s)
         end
       end
     end
@@ -56,15 +56,6 @@ module Pwrake
       @closeable=nil
     end
   end # class Logger
-
-
-=begin
-  class Application
-    def logger
-      @logger ||= Logger.new
-    end
-  end
-=end
 
 end # module Pwrake
 

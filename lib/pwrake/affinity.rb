@@ -43,7 +43,6 @@ module Pwrake
     end
 
     def on_thread_end
-      puts "-- $cv.broadcast"
     end
 
     def queue_class
