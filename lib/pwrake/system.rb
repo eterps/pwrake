@@ -8,27 +8,51 @@ end
 
 module FileUtils
   include Pwrake::Log
-  alias rake_system_orig :rake_system
 
-  def rake_system(*cmd)
+  alias sh_orig :sh
+
+  def sh(*cmd, &block)
+    options = (Hash === cmd.last) ? cmd.pop : {}
+    unless block_given?
+      show_command = cmd.join(" ")
+      show_command = show_command[0,42] + "..."
+      # TODO code application logic heref show_command.length > 45
+      block = lambda { |ok, status|
+        ok or fail "Command failed with status (#{status.exitstatus}): [#{show_command}]"
+      }
+    end
+    if RakeFileUtils.verbose_flag == :default
+      options[:verbose] = false
+    else
+      options[:verbose] ||= RakeFileUtils.verbose_flag
+    end
+    options[:noop]    ||= RakeFileUtils.nowrite_flag
+    rake_check_options options, :noop, :verbose
+    rake_output_message cmd.join(" ") if options[:verbose]
+    unless options[:noop]
+      res,status = pwrake_system(*cmd)
+      block.call(res, status)
+    end
+  end
+
+  def pwrake_system(*cmd)
     cmd_log = cmd.join(" ").inspect
     tm = Pwrake.timer("sh",cmd_log)
 
     conn = Thread.current[:connection]
     if conn.kind_of?(Pwrake::Shell)
-      res    = conn.system(*cmd)
-      status = Rake::PseudoStatus.new(conn.status)
-      status = Rake::PseudoStatus.new(1) if !res && status.nil?
+      res    = conn.execute(*cmd)
+      status = conn.status
     else
       res    = system(*cmd)
       status = $?
-      status = Rake::PseudoStatus.new(1) if !res && status.nil?
     end
 
     tm.finish("status=%s cmd=%s"%[status.exitstatus,cmd_log])
-    res
+    [res,status]
   end
 end
+
 
 module PwrakeFileUtils
   module_function
@@ -40,12 +64,10 @@ module PwrakeFileUtils
     conn = Thread.current[:connection]
     if conn.kind_of?(Pwrake::Shell)
       res    = conn.backquote(*cmd)
-      status = Rake::PseudoStatus.new(conn.status)
-      status = Rake::PseudoStatus.new(1) if !res && status.nil?
+      status = conn.status
     else
       res    = Kernel.backquote(cmd)
       status = $?
-      status = Rake::PseudoStatus.new(1) if !res && status.nil?
     end
 
     tm.finish("status=%s cmd=%s"%[status.exitstatus,cmd_log])
@@ -54,7 +76,3 @@ module PwrakeFileUtils
 end
 
 include PwrakeFileUtils
-
-if !defined? FileUtils::PseudoStatus
-  FileUtils::PseudoStatus = Rake::PseudoStatus
-end
