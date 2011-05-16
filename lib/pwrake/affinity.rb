@@ -178,6 +178,10 @@ module Pwrake
         @hosts.each{|h| @q[h].clear}
       end
 
+      def empty?
+        @hosts.all?{|h| @q[h].empty?}
+      end
+
     end # class HostQueue
 
     def initialize(hosts=[])

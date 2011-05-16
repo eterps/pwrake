@@ -37,6 +37,9 @@ module Pwrake
       def clear
         @q.clear
       end
+      def empty?
+        @q.empty?
+      end
     end
 
     def initialize(hosts=[])
@@ -58,6 +61,7 @@ module Pwrake
 
     def pop(host=nil)
       @m.synchronize do
+        n = 0
         loop do
           if @th_end.first == Thread.current
             @th_end.shift
@@ -65,20 +69,27 @@ module Pwrake
           elsif @finished # no task in queue
             @cv.signal
             return false
-          elsif task = @q.pop(host)
+          end
+
+          if !@q.empty?
+
+            if task = @q.pop(host)
+              @cv.signal
+              return task
+            end
+
+            if n > 1
+              if task = @q.pop_alt(host)
+                @cv.signal
+                return task
+              end
+            end
+
+            n += 1
             @cv.signal
-            return task
           end
 
           @cv.wait(@m)
-
-          if task = @q.pop(host)
-            @cv.signal
-            return task
-          elsif task = @q.pop_alt(host)
-            @cv.signal
-            return task
-          end
         end
       end
     end
