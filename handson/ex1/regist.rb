@@ -1,12 +1,7 @@
 require "tempfile"
 require "pathname"
 
-hosts=%w[
-les02.omni.hpcc.jp
-les03.omni.hpcc.jp
-les04.omni.hpcc.jp
-les05.omni.hpcc.jp
-]
+hosts=IO.readlines("nodes").map{|x|x.chomp}
 
 files=%w[
 test1

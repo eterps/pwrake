@@ -23,16 +23,18 @@ class Counter
   end
 
   def print
-    out = Pwrake.manager.logger
-    out.puts "same=#{@same}, diff=#{@diff}, total=#{@total}"
-    keys = @same_hosts.keys.sort
-    out.puts "same_hosts = {"
-    keys.each { |k| out.puts "  #{k}: #{@same_hosts[k]}" }
-    out.puts "}"
-    keys = @diff_hosts.keys.sort
-    out.puts "different_hosts = {"
-    keys.each { |k| out.puts "  #{k}: #{@diff_hosts[k]}" }
-    out.puts "}"
+    s  = "same=#{@same}, diff=#{@diff}, total=#{@total}\n"
+    s << "same_hosts = {\n"
+    @same_hosts.keys.sort.each do |k|
+      s << "  #{k}: #{@same_hosts[k]}\n"
+    end
+    s << "}\n"
+    s << "different_hosts = {\n"
+    @diff_hosts.keys.sort.each do |k|
+      s << "  #{k}: #{@diff_hosts[k]}\n"
+    end
+    s << "}"
+    Pwrake::Log.log s
   end
 
   def no_queue

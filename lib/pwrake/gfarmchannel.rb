@@ -82,31 +82,37 @@ module Pwrake
 
       def gfwhere(list)
         result = {}
+        count = 0
+        cmd = "gfwhere"
         parse_proc = proc{|x|
-          if /(\S+):\n(.+)/m =~ x
-    	f = $1
-    	h = $2.split
-    	result[f] = h if !h.empty?
+          if count==1
+            result[cmd[8..-1]] = x.split
+          else
+            x.scan(/^([^\n]+):\n([^\n]*)$/m) do |file,hosts|
+              h = hosts.split
+              result[file] = h if !h.empty?
+            end
           end
         }
-        cmd = "gfwhere"
+
         list.each do |a|
           if a
-            path = gf_path(a)
+            path = GfarmSSH.gf_path(a)
             if cmd.size + path.size + 1 > 20480 # 131000
               x = Kernel.backquote(cmd)
-              x.split("\n\n").each(&parse_proc)
+              parse_proc.call(x)
               cmd = "gfwhere"
+              count = 0
             end
             cmd << " "
             cmd << path
+            count += 1
           end
         end
-        if cmd.size>8
+        if count > 0
           x = Kernel.backquote(cmd)
-          x.split("\n\n").each(&parse_proc)
+          parse_proc.call(x)
         end
-        # puts "result.size=#{result.size}"
         result
       end
 

@@ -37,6 +37,9 @@ module Pwrake
       def clear
         @q.clear
       end
+      def empty?
+        @q.empty?
+      end
     end
 
     def initialize(hosts=[])
@@ -57,23 +60,36 @@ module Pwrake
     end
 
     def pop(host=nil)
-      loop do
-        @m.synchronize do
+      @m.synchronize do
+        n = 0
+        loop do
           if @th_end.first == Thread.current
             @th_end.shift
             return false
-          elsif task = @q.pop(host)
-            @cv.signal
-            return task
           elsif @finished # no task in queue
             @cv.signal
             return false
-          elsif task = @q.pop_alt(host)
-            @cv.signal
-            return task
-          else
-            @cv.wait(@m)
           end
+
+          if !@q.empty?
+
+            if task = @q.pop(host)
+              @cv.signal
+              return task
+            end
+
+            if n > 1
+              if task = @q.pop_alt(host)
+                @cv.signal
+                return task
+              end
+            end
+
+            n += 1
+            @cv.signal
+          end
+
+          @cv.wait(@m)
         end
       end
     end
@@ -109,7 +125,6 @@ module Pwrake
     end
 
     def on_execute(a)
-      # puts "-- on_execute #{a.inspect}"
       if a.kind_of? TaskQueue
         a.task
       else
@@ -131,5 +146,4 @@ module Pwrake
     end
   end
 
-  #manager.scheduler_class = Scheduler
 end

@@ -4,13 +4,16 @@ SRC = FileList["*.in"]
 OUT = SRC.ext('out')
 
 rule ".out" => ".in" do |t|
-  t.rsh "(
-    echo 'hostname: '`hostname`
-    echo 'filenode: '`gfwhere #{GfarmSSH.gf_pwd}/#{t.prerequisites[0]}`
-    echo 'pwd:      '`pwd`
-    ) > #{t.name}"
+  c = []
+  c << "echo 'hostname: '`hostname`"
+  c << "echo 'pwd:      '`pwd`"
+  if defined? Pwrake
+    c << "echo 'filenode: '`gfwhere #{Pwrake::GfarmSSH.gf_pwd}/#{t.prerequisites[0]}`"
+  end
+  s = c.join("\n  ")
+  sh "(\n  #{s}\n) > #{t.name}"
 end
 
-pw_multitask :default => OUT
+task :default => OUT
 
 CLEAN.include("*.out")

@@ -4,7 +4,7 @@ module Pwrake
     include Log
 
     def on_trace(tasks)
-      if Pwrake.manager.gfarm # and @@affinity
+      if Pwrake.manager.gfarm and Pwrake.manager.affinity
         gfwhere_result = {}
         filenames = []
         tasks.each do |t|
@@ -43,7 +43,6 @@ module Pwrake
     end
 
     def on_thread_end
-      puts "-- $cv.broadcast"
     end
 
     def queue_class
@@ -177,6 +176,10 @@ module Pwrake
 
       def clear
         @hosts.each{|h| @q[h].clear}
+      end
+
+      def empty?
+        @hosts.all?{|h| @q[h].empty?}
       end
 
     end # class HostQueue

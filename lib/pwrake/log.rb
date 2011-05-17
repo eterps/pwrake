@@ -43,7 +43,7 @@ module Pwrake
     def finish(*extra)
       end_time = Time.now
       elap_time = end_time - @start_time
-      str = "%s[end]:%s elap=%.3f %s" % 
+      str = "%s[end]:%s elap=%.3f %s" %
         [@prefix, Pwrake.time_str(end_time), elap_time, extra.join(' ')]
         log(str)
     end

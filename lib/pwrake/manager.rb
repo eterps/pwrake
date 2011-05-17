@@ -1,24 +1,3 @@
-module Rake
-
-  class Application
-    alias top_level_orig :top_level
-
-    def top_level
-      pwrake = nil
-      begin
-        pwrake = Pwrake.manager
-        top_level_orig
-      ensure
-        puts "** ensure"
-        pwrake.finish if pwrake
-      end
-    end
-
-    attr_reader :pwrake
-  end
-end
-
-
 module Pwrake
 
   def self.manager
@@ -39,6 +18,7 @@ module Pwrake
     attr_reader :threads
     attr_reader :logger
     attr_reader :gfarm
+    attr_reader :affinity
 
     def scheduler_class=(a)
       @scheduler_class=a
@@ -84,9 +64,13 @@ module Pwrake
 
     def setup_logger
       if @logfile = ENV["LOGFILE"] || ENV["LOG"]
-        # @logfile = "log/" + logfile + ".log"
-        # mkdir_p "log"
-        mkdir_p File.dirname(@logfile)
+        logdir = File.dirname(@logfile)
+        if !File.directory?(logdir)
+          mkdir_p logdir
+        end
+        # turn trace option on
+        Rake.application.options.trace = true
+        Rake.application.options.verbose = true
         @logger.open(@logfile)
         log "logfile=#{@logfile}"
       else
@@ -98,16 +82,17 @@ module Pwrake
     def setup_hostlist
       @hostfile = ENV["HOSTFILE"] || ENV["HOSTLIST"] || ENV["HOSTS"] ||
         ENV["NODEFILE"] || ENV["NODELIST"] || ENV["NODES"]
-      # @hostlist = HostList.new(@hostfile)
       #
       @host_group = []
       if @hostfile
+        require "socket"
         tmplist = []
         File.open(@hostfile) {|f|
           while l = f.gets
             l = $1 if /^([^#]+)#/ =~ l
             host, ncore, group = l.split
             if host
+              host  = Socket.gethostbyname(host)[0]
               ncore = (ncore || 1).to_i
               group = (group || 0).to_i
               tmplist << ([host] * ncore.to_i)
@@ -145,6 +130,12 @@ module Pwrake
       else
         @gfarm = false
         log "FILESYSTEM=non-Gfarm"
+      end
+      #
+      @gfarm_mountpoint = ENV["GFARM_MOUNTPOINT"] || ENV["GFARM_MP"]
+      #
+      if (ENV["AFFINITY"] || ENV["AF"] || "").downcase == "off"
+        @affinity = false
       end
     end
 

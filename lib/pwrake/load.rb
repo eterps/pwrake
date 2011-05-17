@@ -10,3 +10,6 @@ require "pwrake/channel"
 require "pwrake/gfarmchannel"
 
 require "pwrake/scheduler"
+require "pwrake/version"
+
+require "pwrake/rake_mod"
