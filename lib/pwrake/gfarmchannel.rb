@@ -97,7 +97,7 @@ module Pwrake
 
         list.each do |a|
           if a
-            path = GfarmSSH.gf_path(a)
+            path = gf_path(a)
             if cmd.size + path.size + 1 > 20480 # 131000
               x = Kernel.backquote(cmd)
               parse_proc.call(x)
