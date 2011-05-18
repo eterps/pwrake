@@ -89,7 +89,7 @@ module Pwrake
         tmplist = []
         File.open(@hostfile) {|f|
           while l = f.gets
-            l = $1 if /^([^#]+)#/ =~ l
+            l = $1 if /^([^#]*)#/ =~ l
             host, ncore, group = l.split
             if host
               host  = Socket.gethostbyname(host)[0]
