@@ -18,7 +18,7 @@ module FileUtils
       show_command = show_command[0,42] + "..."
       # TODO code application logic heref show_command.length > 45
       block = lambda { |ok, status|
-        ok or fail "Command failed with status (#{status.exitstatus}): [#{show_command}]"
+        ok or fail "Command failed with status (#{status}): [#{show_command}]"
       }
     end
     if RakeFileUtils.verbose_flag == :default
