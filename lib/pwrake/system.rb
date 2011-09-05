@@ -18,7 +18,7 @@ module FileUtils
       show_command = show_command[0,42] + "..."
       # TODO code application logic heref show_command.length > 45
       block = lambda { |ok, status|
-        ok or fail "Command failed with status (#{status}): [#{show_command}]"
+        ok or fail "Command failed with status (#{status.exitstatus}): [#{show_command}]"
       }
     end
     if RakeFileUtils.verbose_flag == :default
@@ -42,13 +42,14 @@ module FileUtils
     conn = Thread.current[:connection]
     if conn.kind_of?(Pwrake::Shell)
       res    = conn.system(*cmd)
-      status = conn.status
+      status = Rake::PseudoStatus.new(conn.status)
     else
       res    = system(*cmd)
-      status = $?.exitstatus
+      status = $?
+      status = Rake::PseudoStatus.new(1) if !res && status.nil?
     end
 
-    tm.finish("status=%s cmd=%s"%[status,cmd_log])
+    tm.finish("status=%s cmd=%s"%[status.exitstatus,cmd_log])
     [res,status]
   end
   private :pwrake_system
@@ -77,7 +78,11 @@ module PwrakeFileUtils
       status = conn.status
     else
       res    = Kernel.backquote(cmd)
-      status = $?.exitstatus
+      if !res && status.nil?
+        status = 1
+      else
+        status = $?.exitstatus
+      end
     end
 
     tm.finish("status=%s cmd=%s"%[status,cmd_log])
